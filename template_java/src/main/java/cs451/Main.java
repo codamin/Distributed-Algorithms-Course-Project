@@ -1,9 +1,8 @@
 package cs451;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.Socket;
+import java.io.*;
+import java.util.HashMap;
+import java.util.Scanner;
 
 public class Main {
 
@@ -25,6 +24,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws InterruptedException {
+        System.out.println("Hello");
         Parser parser = new Parser(args);
         parser.parse();
 
@@ -56,13 +56,69 @@ public class Main {
 
         System.out.println("Doing some initialization\n");
 
+        File myObj = new File(parser.config());
+        Scanner myReader = null;
+        try {
+            myReader = new Scanner(myObj);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
+        int numOfMsg = 0, receiverID = 0;
+        while (myReader.hasNextLine()) {
+            String[] parsedLine = myReader.nextLine().split(" ");
+            numOfMsg = Integer.parseInt(parsedLine[0]);
+            receiverID = Integer.parseInt(parsedLine[1]);
+        }
+
+        System.out.println("num of msg = " + numOfMsg);
+        System.out.println("receiver id = " + receiverID);
+
         System.out.println("Broadcasting and delivering messages...\n");
 
-        // After a process finishes broadcasting,
-        // it waits forever for the delivery of messages.
-        while (true) {
-            // Sleep for 1 hour
-            Thread.sleep(60 * 60 * 1000);
+        // create ip,port --> id map
+        HashMap<String, Integer> host2IdMap = new HashMap<>();
+        for(Host host_: parser.hosts()) {
+            host2IdMap.put(host_.getIp() + ":" + host_.getPort(), host_.getId());
         }
+
+        // Set host2IdMap in each host
+        for(Host host_: parser.hosts()) {
+            host_.setHost2IdMap(host2IdMap);
+        }
+        
+        // Set Hosts' output path
+        for(Host host_: parser.hosts()) {
+            host_.setOutputPath(parser.output());
+        }
+
+        // find the host object corresponding to the current process
+        Host host = null;
+        for(Host host_: parser.hosts()) {
+            if(host_.getId() == parser.myId())
+                host = host_;
+        }
+
+        // check whether the current process is sender or receiver
+        if(parser.myId() == receiverID)
+            host.startListening();
+        else {
+            // if current process is a sender
+            // find the receiver host
+            Host receiverHost = null;
+            for(Host host_: parser.hosts()) {
+                if(host_.getId() == receiverID)
+                    receiverHost = host_;
+            }
+//            System.out.println("the receiver id is = " + receiverID);
+            host.startSending(receiverHost.getIp(), receiverHost.getPort(), numOfMsg);
+        }
+
+         // After a process finishes broadcasting,
+         // it waits forever for the delivery of messages.
+//        while (true) {
+//            // Sleep for 1 hour
+//            Thread.sleep(60 * 60 * 1000);
+//        }
     }
 }
