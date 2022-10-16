@@ -6,12 +6,17 @@ import java.util.Scanner;
 
 public class Main {
 
+    static Host thisHost;
     private static void handleSignal() {
         //immediately stop network packet processing
         System.out.println("Immediately stopping network packet processing.");
 
         //write/flush output file if necessary
-        System.out.println("Writing output.");
+
+        if (thisHost != null) {
+            System.out.println("Writing output.");
+            thisHost.writeLogs2Output();
+        }
     }
 
     private static void initSignalHandlers() {
@@ -57,7 +62,7 @@ public class Main {
         System.out.println("Doing some initialization\n");
 
         File myObj = new File(parser.config());
-        Scanner myReader = null;
+        Scanner myReader;
         try {
             myReader = new Scanner(myObj);
         } catch (FileNotFoundException e) {
@@ -93,15 +98,14 @@ public class Main {
         }
 
         // find the host object corresponding to the current process
-        Host host = null;
         for(Host host_: parser.hosts()) {
             if(host_.getId() == parser.myId())
-                host = host_;
+                thisHost = host_;
         }
 
         // check whether the current process is sender or receiver
         if(parser.myId() == receiverID)
-            host.startListening();
+            thisHost.startListening();
         else {
             // if current process is a sender
             // find the receiver host
@@ -110,8 +114,7 @@ public class Main {
                 if(host_.getId() == receiverID)
                     receiverHost = host_;
             }
-//            System.out.println("the receiver id is = " + receiverID);
-            host.startSending(receiverHost.getIp(), receiverHost.getPort(), numOfMsg);
+            thisHost.startSending(receiverHost.getIp(), receiverHost.getPort(), numOfMsg);
         }
 
          // After a process finishes broadcasting,

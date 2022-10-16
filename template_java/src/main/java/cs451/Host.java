@@ -2,12 +2,19 @@ package cs451;
 
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
 public class Host {
 
+    class Logs {
+        public String logString = "";
+        public synchronized void addLog(String addition) {
+            logString += addition;
+            logString += "\n";
+        }
+    }
+    final Logs logs = new Logs();
     private static final String IP_START_REGEX = "/";
 
     private int id;
@@ -64,8 +71,10 @@ public class Host {
         this.host2IdMap = host2IdMap;
     }
 
-    private HashMap<Integer, HashSet<Integer>> delivered = new HashMap<>();
-    private HashMap<Integer, HashSet<Integer>> ackedSet = new HashMap<>();
+    private volatile HashMap<Integer, HashSet<Integer>> deliveredSet = new HashMap<>();
+    private volatile HashMap<Integer, HashSet<Integer>> ackedSet = new HashMap<>();
+
+    private HashSet sentMsgs = new HashSet();
 
 
     public void setOutputPath(String outputPath) {
@@ -86,8 +95,19 @@ public class Host {
             throw new RuntimeException(e);
         }
         try {socket.send(sendingPacket);} catch (IOException e) {throw new RuntimeException(e);}
-        // Write in output
-        writeToOutput(new String("b"), 0, msgSeqNumber);
+
+        boolean isNotSent = !sentMsgs.contains(msgSeqNumber);
+        if(isNotSent) {
+            // Write in output
+            log("b", 0, msgSeqNumber);
+        }
+
+        sentMsgs.add(msgSeqNumber);
+//        try {
+//            Thread.sleep(1000);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
 //        System.out.println("Done.");
     }
 
@@ -105,26 +125,27 @@ public class Host {
 
             String senderIp = packet.getAddress().getHostAddress();
             int senderPort = packet.getPort();
-//            System.out.println(host2IdMap);
-//            System.out.println("senderIp = " + senderIp);
-//            System.out.println("senderPort = " + senderPort);
             int senderId = getHostId(senderIp, senderPort);
 
             // handle the packet
             String msg = new String(packet.getData(), 0, packet.getLength());
-
-//            System.out.println("Received: " + msg);
 
             // Add seq number to acked set
             String[] msgSplit = msg.split("#");
             int msgSeqNumber = 0;
             if (msgSplit[0].equals("ack")) {
                 msgSeqNumber = Integer.parseInt(msgSplit[1]);
-                if (ackedSet.get(senderId) == null) {
-                    ackedSet.put(senderId, new HashSet<>());
-                    ackedSet.get(senderId).add(msgSeqNumber);
-                } else {
-                    ackedSet.get(senderId).add(msgSeqNumber);
+
+                boolean isNotAcked = ackedSet.get(getHostId(destIP, destPort)) == null ||
+                        !ackedSet.get(getHostId(destIP, destPort)).contains(msgSeqNumber);
+
+                if(isNotAcked) {
+                    if (ackedSet.get(senderId) == null) {
+                        ackedSet.put(senderId, new HashSet<>());
+                        ackedSet.get(senderId).add(msgSeqNumber);
+                    } else {
+                        ackedSet.get(senderId).add(msgSeqNumber);
+                    }
                 }
             }
         }
@@ -182,9 +203,6 @@ public class Host {
             new Thread(() -> {
                 String senderIp = packet.getAddress().getHostAddress();
                 int senderPort = packet.getPort();
-//                System.out.println(host2IdMap);
-//                System.out.println("senderIp = " + senderIp);
-//                System.out.println("senderPort = " + senderPort);
                 int senderId = getHostId(senderIp, senderPort);
 
                 // handle the packet
@@ -192,55 +210,55 @@ public class Host {
 
                 int msgSeqNumber = Integer.parseInt(msg);
 
-//                System.out.println("Delivered Set: ");
-//                System.out.println(delivered);
                 // send ack
-                boolean isNotDelivered = delivered.get(senderId) == null || ! delivered.get(senderId).contains(msgSeqNumber);
-//                if(delivered.get(senderId) == null)
-//                    System.out.println("delivered.get(senderId) = null");
-//                else if(! delivered.get(senderId).contains(msgSeqNumber))
-//                    System.out.println("delivered.get(senderId).contains(msgSeqNumber) = False");
-
-//                System.out.printf("Sending acknowledge for msg:" + msgSeqNumber);
-                sendAck(senderIp, senderPort, msgSeqNumber, socket);
-//                System.out.println("Done.");
-
-                if(isNotDelivered) {
+//                boolean isNotDelivered = deliveredSet.get(senderId) == null || ! deliveredSet.get(senderId).contains(msgSeqNumber);
+//
+//                if(isNotDelivered) {
                     // Deliver
-                    pp2pDeliver(senderId, msgSeqNumber);
-                }
+                pp2pDeliver(senderId, msgSeqNumber);
+//                }
+
+                sendAck(senderIp, senderPort, msgSeqNumber, socket);
+
             }).start();
         }
     }
 
-    void writeToOutput(String typeOfOperation, Integer senderId, Integer msgSeqNumber) {
+    private void log(String typeOfOperation, Integer senderId, Integer msgSeqNumber) {
+        if(typeOfOperation.equals("d")) {
+            System.out.println("adding log to output 2");
+            logs.addLog(typeOfOperation + " " + senderId + " " + msgSeqNumber.toString());
+            System.out.println("logs = " + logs.logString);
+        }
+        else if(typeOfOperation.equals("b")) {
+            logs.addLog(typeOfOperation + " " + msgSeqNumber.toString());
+        }
+    }
+
+    public void writeLogs2Output() {
         PrintWriter writer;
         try {
             writer = new PrintWriter(new FileOutputStream(new File(outputPath), true));
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
-        if(typeOfOperation.equals("d"))
-            writer.println(typeOfOperation + " " + senderId + " " + msgSeqNumber.toString());
-        else if(typeOfOperation.equals("b"))
-            writer.println(typeOfOperation + " " + msgSeqNumber.toString());
+        writer.println(logs.logString);
         writer.close();
     }
-    public void pp2pDeliver(Integer senderId, Integer msgSeqNumber) {
+    public synchronized void pp2pDeliver(Integer senderId, Integer msgSeqNumber) {
+        boolean isNotDelivered = deliveredSet.get(senderId) == null || ! deliveredSet.get(senderId).contains(msgSeqNumber);
+        if(!isNotDelivered)
+            return;
         // Add to the delivered set
-//        System.out.println("Adding to the delivered set...");
-        if(delivered.get(senderId) == null) {
-            delivered.put(senderId, new HashSet<>());
-            delivered.get(senderId).add(msgSeqNumber);
+        if(deliveredSet.get(senderId) == null) {
+            deliveredSet.put(senderId, new HashSet<>());
+            deliveredSet.get(senderId).add(msgSeqNumber);
         }
         else {
-            delivered.get(senderId).add(msgSeqNumber);
+            deliveredSet.get(senderId).add(msgSeqNumber);
         }
-//        System.out.println("Done.");
 
         // Write in output
-//        System.out.println("Writing to the output file...");
-        writeToOutput(new String("d"), senderId, msgSeqNumber);
-//        System.out.println("Done.");
+        log("d", senderId, msgSeqNumber);
     }
 }
