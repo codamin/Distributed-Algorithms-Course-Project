@@ -78,36 +78,57 @@ public class Host {
 
     private void pp2pSend(String destIP, int destPort, DatagramSocket socket, Integer msgSeqNumber) {
         byte[] buf = msgSeqNumber.toString().getBytes();
-        DatagramPacket sendingPacket = null;
+        DatagramPacket sendingPacket;
         try {
             sendingPacket = new DatagramPacket(buf, buf.length, InetAddress.getByName(destIP), destPort);
         } catch (UnknownHostException e) {
             System.out.println("The given host name is unknown.");
             throw new RuntimeException(e);
         }
-
-        boolean isNotAcked;
-        do {
-            System.out.println("Acked Set:");
-            System.out.println(ackedSet);
-            try {socket.send(sendingPacket);} catch (IOException e) {throw new RuntimeException(e);}
-
-            isNotAcked = ackedSet.get(getHostId(destIP, destPort)) == null ||
-                    ! ackedSet.get(getHostId(destIP, destPort)).contains(msgSeqNumber);
-            System.out.println("isNotAcked");
-            System.out.println(isNotAcked);
-            System.out.println("msgSeqNumber");
-            System.out.println(msgSeqNumber);
-
-            try {Thread.sleep(200);} catch (InterruptedException e) {throw new RuntimeException(e);}
-
-        } while(isNotAcked);
-
+        try {socket.send(sendingPacket);} catch (IOException e) {throw new RuntimeException(e);}
         // Write in output
         writeToOutput(new String("b"), 0, msgSeqNumber);
-        System.out.println("Done.");
+//        System.out.println("Done.");
     }
 
+    public void listenForAck(String destIP, int destPort, DatagramSocket socket) {
+        while(true) {
+            byte[] buf = new byte[256];
+            DatagramPacket packet = new DatagramPacket(buf, buf.length);
+
+            // block to receive
+            try {
+                socket.receive(packet);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            String senderIp = packet.getAddress().getHostAddress();
+            int senderPort = packet.getPort();
+//            System.out.println(host2IdMap);
+//            System.out.println("senderIp = " + senderIp);
+//            System.out.println("senderPort = " + senderPort);
+            int senderId = getHostId(senderIp, senderPort);
+
+            // handle the packet
+            String msg = new String(packet.getData(), 0, packet.getLength());
+
+//            System.out.println("Received: " + msg);
+
+            // Add seq number to acked set
+            String[] msgSplit = msg.split("#");
+            int msgSeqNumber = 0;
+            if (msgSplit[0].equals("ack")) {
+                msgSeqNumber = Integer.parseInt(msgSplit[1]);
+                if (ackedSet.get(senderId) == null) {
+                    ackedSet.put(senderId, new HashSet<>());
+                    ackedSet.get(senderId).add(msgSeqNumber);
+                } else {
+                    ackedSet.get(senderId).add(msgSeqNumber);
+                }
+            }
+        }
+    }
     public void startSending(String destIP, int destPort, int numOfMsg) {
         // Creat a socket for sending the packet
         DatagramSocket socket;
@@ -117,9 +138,18 @@ public class Host {
             listenForAck(destIP, destPort, socket);
         }).start();
 
-        for(Integer i = 1; i <= numOfMsg; i++) {
-            System.out.println("Sending msg: " + i);
-            pp2pSend(destIP, destPort, socket, i);
+        boolean flag = true;
+        while(flag) {
+            for (Integer i = 1; i <= numOfMsg; i++) {
+                flag = false;
+//                System.out.println("Sending msg: " + i);
+                boolean isNotAcked = ackedSet.get(getHostId(destIP, destPort)) == null ||
+                        !ackedSet.get(getHostId(destIP, destPort)).contains(i);
+                if(isNotAcked) {
+                    flag = true;
+                    pp2pSend(destIP, destPort, socket, i);
+                }
+            }
         }
     }
 
@@ -152,9 +182,9 @@ public class Host {
             new Thread(() -> {
                 String senderIp = packet.getAddress().getHostAddress();
                 int senderPort = packet.getPort();
-                System.out.println(host2IdMap);
-                System.out.println("senderIp = " + senderIp);
-                System.out.println("senderPort = " + senderPort);
+//                System.out.println(host2IdMap);
+//                System.out.println("senderIp = " + senderIp);
+//                System.out.println("senderPort = " + senderPort);
                 int senderId = getHostId(senderIp, senderPort);
 
                 // handle the packet
@@ -162,63 +192,24 @@ public class Host {
 
                 int msgSeqNumber = Integer.parseInt(msg);
 
-                System.out.println("Delivered Set: ");
-                System.out.println(delivered);
+//                System.out.println("Delivered Set: ");
+//                System.out.println(delivered);
                 // send ack
                 boolean isNotDelivered = delivered.get(senderId) == null || ! delivered.get(senderId).contains(msgSeqNumber);
-                if(delivered.get(senderId) == null)
-                    System.out.println("delivered.get(senderId) = null");
-                else if(! delivered.get(senderId).contains(msgSeqNumber))
-                    System.out.println("delivered.get(senderId).contains(msgSeqNumber) = False");
+//                if(delivered.get(senderId) == null)
+//                    System.out.println("delivered.get(senderId) = null");
+//                else if(! delivered.get(senderId).contains(msgSeqNumber))
+//                    System.out.println("delivered.get(senderId).contains(msgSeqNumber) = False");
 
-                System.out.printf("Sending acknowledge for msg:" + msgSeqNumber);
+//                System.out.printf("Sending acknowledge for msg:" + msgSeqNumber);
                 sendAck(senderIp, senderPort, msgSeqNumber, socket);
-                System.out.println("Done.");
+//                System.out.println("Done.");
 
                 if(isNotDelivered) {
                     // Deliver
                     pp2pDeliver(senderId, msgSeqNumber);
                 }
             }).start();
-        }
-    }
-
-    public void listenForAck(String destIP, int destPort, DatagramSocket socket) {
-        while(true) {
-            byte[] buf = new byte[256];
-            DatagramPacket packet = new DatagramPacket(buf, buf.length);
-
-            // block to receive
-            try {
-                socket.receive(packet);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            String senderIp = packet.getAddress().getHostAddress();
-            int senderPort = packet.getPort();
-            System.out.println(host2IdMap);
-            System.out.println("senderIp = " + senderIp);
-            System.out.println("senderPort = " + senderPort);
-            int senderId = getHostId(senderIp, senderPort);
-
-            // handle the packet
-            String msg = new String(packet.getData(), 0, packet.getLength());
-
-            System.out.println("Received: " + msg);
-
-            // Add seq number to acked set
-            String[] msgSplit = msg.split("#");
-            int msgSeqNumber = 0;
-            if (msgSplit[0].equals("ack")) {
-                msgSeqNumber = Integer.parseInt(msgSplit[1]);
-                if (ackedSet.get(senderId) == null) {
-                    ackedSet.put(senderId, new HashSet<>());
-                    ackedSet.get(senderId).add(msgSeqNumber);
-                } else {
-                    ackedSet.get(senderId).add(msgSeqNumber);
-                }
-            }
         }
     }
 
@@ -237,7 +228,7 @@ public class Host {
     }
     public void pp2pDeliver(Integer senderId, Integer msgSeqNumber) {
         // Add to the delivered set
-        System.out.println("Adding to the delivered set...");
+//        System.out.println("Adding to the delivered set...");
         if(delivered.get(senderId) == null) {
             delivered.put(senderId, new HashSet<>());
             delivered.get(senderId).add(msgSeqNumber);
@@ -245,11 +236,11 @@ public class Host {
         else {
             delivered.get(senderId).add(msgSeqNumber);
         }
-        System.out.println("Done.");
+//        System.out.println("Done.");
 
         // Write in output
-        System.out.println("Writing to the output file...");
+//        System.out.println("Writing to the output file...");
         writeToOutput(new String("d"), senderId, msgSeqNumber);
-        System.out.println("Done.");
+//        System.out.println("Done.");
     }
 }
