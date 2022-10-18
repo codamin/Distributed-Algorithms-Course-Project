@@ -5,6 +5,8 @@ import java.net.*;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import static java.lang.Math.min;
+
 public class Host {
 
     class Logs {
@@ -17,6 +19,7 @@ public class Host {
     final Logs logs = new Logs();
     private static final String IP_START_REGEX = "/";
 
+    int lastMsg = 0;
     private int id;
     private String ip;
     private int port = -1;
@@ -76,7 +79,6 @@ public class Host {
 
     private HashSet sentMsgs = new HashSet();
 
-
     public void setOutputPath(String outputPath) {
         this.outputPath = outputPath;
     }
@@ -85,8 +87,12 @@ public class Host {
         return host2IdMap.get(IP + ":" + port);
     }
 
-    private void pp2pSend(String destIP, int destPort, DatagramSocket socket, Integer msgSeqNumber) {
-        byte[] buf = msgSeqNumber.toString().getBytes();
+    private DatagramPacket prepareSendingPacket(String destIP, int destPort, int intervalBegin, int intervalEnd) {
+        String msgString = String.valueOf(intervalBegin);
+        for(int i = intervalBegin+1; i <= intervalEnd; i++) {
+            msgString += "," + i;
+        }
+        byte[] buf = msgString.getBytes();
         DatagramPacket sendingPacket;
         try {
             sendingPacket = new DatagramPacket(buf, buf.length, InetAddress.getByName(destIP), destPort);
@@ -94,21 +100,50 @@ public class Host {
             System.out.println("The given host name is unknown.");
             throw new RuntimeException(e);
         }
-        try {socket.send(sendingPacket);} catch (IOException e) {throw new RuntimeException(e);}
+        return sendingPacket;
+    }
+    private void sendPacket(String destIP, int destPort, DatagramSocket socket, int intervalBegin, int intervalEnd) {
+        DatagramPacket sendingPacket = prepareSendingPacket(destIP, destPort, intervalBegin, intervalEnd);
 
-        boolean isNotSent = !sentMsgs.contains(msgSeqNumber);
-        if(isNotSent) {
-            // Write in output
-            log("b", 0, msgSeqNumber);
+        try {
+            socket.send(sendingPacket);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
-        sentMsgs.add(msgSeqNumber);
-//        try {
-//            Thread.sleep(1000);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
-//        System.out.println("Done.");
+        boolean isNotSent = !sentMsgs.contains(intervalBegin);
+        if (isNotSent) {
+            for(int i = intervalBegin; i <= intervalEnd; i++)
+            // Write in output
+                log("b", 0, i);
+        }
+
+        sentMsgs.add(intervalBegin);
+    }
+
+    public void startSending(String destIP, int destPort, int numOfMsg) {
+        // Creat a socket for sending the packet
+        DatagramSocket socket;
+        try {socket = new DatagramSocket(port);} catch (SocketException e) {throw new RuntimeException(e);}
+
+        new Thread(() -> {
+            listenForAck(destIP, destPort, socket);
+        }).start();
+
+        int capacity = 8;
+        int intervalBegin = 1;
+        int intervalEnd = intervalBegin + capacity - 1;
+
+        while(intervalBegin <= numOfMsg) {
+            boolean isNotAcked = true;
+            while(isNotAcked) {
+                sendPacket(destIP, destPort, socket, intervalBegin, intervalEnd);
+                isNotAcked = ackedSet.get(getHostId(destIP, destPort)) == null ||
+                        !ackedSet.get(getHostId(destIP, destPort)).contains(intervalBegin);
+            }
+            intervalBegin = intervalEnd + 1;
+            intervalEnd = min(numOfMsg, intervalBegin + capacity - 1);
+        }
     }
 
     public void listenForAck(String destIP, int destPort, DatagramSocket socket) {
@@ -150,29 +185,6 @@ public class Host {
             }
         }
     }
-    public void startSending(String destIP, int destPort, int numOfMsg) {
-        // Creat a socket for sending the packet
-        DatagramSocket socket;
-        try {socket = new DatagramSocket(port);} catch (SocketException e) {throw new RuntimeException(e);}
-
-        new Thread(() -> {
-            listenForAck(destIP, destPort, socket);
-        }).start();
-
-        boolean flag = true;
-        while(flag) {
-            for (Integer i = 1; i <= numOfMsg; i++) {
-                flag = false;
-//                System.out.println("Sending msg: " + i);
-                boolean isNotAcked = ackedSet.get(getHostId(destIP, destPort)) == null ||
-                        !ackedSet.get(getHostId(destIP, destPort)).contains(i);
-                if(isNotAcked) {
-                    flag = true;
-                    pp2pSend(destIP, destPort, socket, i);
-                }
-            }
-        }
-    }
 
     private void sendAck(String destIP, int destPort, int msgSeqNumber, DatagramSocket socket) {
         byte[] buf = new String("ack" + "#" + msgSeqNumber).getBytes();
@@ -185,6 +197,7 @@ public class Host {
         }
         try {socket.send(sendingPacket);} catch (IOException e) {throw new RuntimeException(e);}
     }
+
     public void startListening() {
         // create a null socket
         DatagramSocket socket;
@@ -198,8 +211,6 @@ public class Host {
             // block to receive
             try {socket.receive(packet);} catch (IOException e) {throw new RuntimeException(e);}
 
-//            boolean = lock
-
             new Thread(() -> {
                 String senderIp = packet.getAddress().getHostAddress();
                 int senderPort = packet.getPort();
@@ -207,16 +218,10 @@ public class Host {
 
                 // handle the packet
                 String msg = new String(packet.getData(), 0, packet.getLength());
+                String[] msgSplit = msg.split(",");
+                int msgSeqNumber = Integer.parseInt(msgSplit[0]);
 
-                int msgSeqNumber = Integer.parseInt(msg);
-
-                // send ack
-//                boolean isNotDelivered = deliveredSet.get(senderId) == null || ! deliveredSet.get(senderId).contains(msgSeqNumber);
-//
-//                if(isNotDelivered) {
-                    // Deliver
-                pp2pDeliver(senderId, msgSeqNumber);
-//                }
+                pp2pDeliver(senderId, Integer.parseInt(msgSplit[0]), Integer.parseInt(msgSplit[msgSplit.length-1]));
 
                 sendAck(senderIp, senderPort, msgSeqNumber, socket);
 
@@ -245,20 +250,22 @@ public class Host {
         writer.println(logs.logString);
         writer.close();
     }
-    public synchronized void pp2pDeliver(Integer senderId, Integer msgSeqNumber) {
-        boolean isNotDelivered = deliveredSet.get(senderId) == null || ! deliveredSet.get(senderId).contains(msgSeqNumber);
+    public synchronized void pp2pDeliver(Integer senderId, Integer intervalBegin, Integer intervalEnd) {
+        boolean isNotDelivered = deliveredSet.get(senderId) == null || ! deliveredSet.get(senderId).contains(intervalBegin);
         if(!isNotDelivered)
             return;
         // Add to the delivered set
         if(deliveredSet.get(senderId) == null) {
             deliveredSet.put(senderId, new HashSet<>());
-            deliveredSet.get(senderId).add(msgSeqNumber);
+            deliveredSet.get(senderId).add(intervalBegin);
         }
         else {
-            deliveredSet.get(senderId).add(msgSeqNumber);
+            deliveredSet.get(senderId).add(intervalBegin);
         }
 
         // Write in output
-        log("d", senderId, msgSeqNumber);
+        for(int i = intervalBegin; i <= intervalEnd; i++) {
+            log("d", senderId, i);
+        }
     }
 }
