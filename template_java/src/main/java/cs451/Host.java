@@ -77,10 +77,6 @@ public class Host {
         this.host2IdMap = host2IdMap;
     }
 
-    HashMap<DatagramPacket, Integer> packetBeginMap = new HashMap<>();
-    HashMap<DatagramPacket, Integer> packetEndMap = new HashMap<>();
-
-
     private volatile HashMap<Integer, HashSet<Integer>> deliveredSet = new HashMap<>();
     private volatile HashMap<Integer, HashSet<Integer>> ackedSet = new HashMap<>();
 
@@ -107,8 +103,6 @@ public class Host {
             System.out.println("The given host name is unknown.");
             throw new RuntimeException(e);
         }
-        packetBeginMap.put(sendingPacket, intervalBegin);
-        packetEndMap.put(sendingPacket, intervalEnd);
         return sendingPacket;
     }
     private void sendPacket(DatagramPacket sendingPacket, DatagramSocket socket, int intervalBegin, int intervalEnd) {
@@ -120,9 +114,6 @@ public class Host {
         boolean isNotSent = !sentMsgs.contains(intervalBegin);
 
         if (isNotSent) {
-//            System.out.println("intervalBegin: " + intervalBegin);
-//            System.out.println("intervalEnd: " + intervalEnd);
-
             for(int i = intervalBegin; i <= intervalEnd; i++)
             // Write in output
                 log("b", 0, i);
@@ -140,58 +131,72 @@ public class Host {
             listenForAck(destIP, destPort, socket);
         }).start();
 
-        ArrayList<DatagramPacket> sendingQueue = new ArrayList<>(1000);
-        // create initial 1000 size sending set
-            // update interval
-        int channel_capacity = 1000;
+        int channel_capacity = 2500;
+        ArrayList<Integer> sendingQueue = new ArrayList<>(1000);
         int packet_size = 8;
         int intervalBegin = 1;
         int intervalEnd = intervalBegin + packet_size - 1;
 
         for(int i = 0; i < channel_capacity; i++) {
-            DatagramPacket sendingPacket = prepareSendingPacket(destIP, destPort, intervalBegin, intervalEnd);
-            sendingQueue.add(sendingPacket);
+            sendingQueue.add(intervalBegin);
 
             intervalBegin = intervalEnd + 1;
-            intervalEnd = min(numOfMsg, intervalBegin + packet_size - 1);
-            if(intervalBegin > numOfMsg)
+            intervalEnd = min(numOfMsg, intervalBegin + packet_size -1);
+            if(intervalBegin >= numOfMsg)
                 break;
         }
 
-//        System.out.println("size of the queue is: " + sendingQueue.size());
-//        System.out.println("interval begin is: " + intervalBegin);
-//        System.out.println("interval end is: " + intervalEnd);
-//        System.out.println("[N/8] is: " + (int) Math.ceil((double) numOfMsg / packet_size));
-
         boolean packetRemaining = true;
+
+        ArrayList<Integer> newAdditions = new ArrayList<>();
         while(packetRemaining) {
-            packetRemaining = ackedSet.size() < (int) Math.ceil((double) numOfMsg / packet_size);
-            Iterator<DatagramPacket> iterator = sendingQueue.iterator();
+            if(ackedSet.get(getHostId(destIP, destPort)) != null)
+                System.out.println("ackedSet.size(): " + ackedSet.get(getHostId(destIP, destPort)).size());
+            System.out.println("(int) Math.ceil((double) numOfMsg / packet_size): " + (int) Math.ceil((double) numOfMsg / packet_size));
+
+            if(ackedSet.get(getHostId(destIP, destPort)) != null)
+                if(ackedSet.get(getHostId(destIP, destPort)).size() == (int) Math.ceil((double) numOfMsg / packet_size))
+                    packetRemaining = false;
+
+            sendingQueue.addAll(newAdditions);
+
+            newAdditions = new ArrayList<>();
+            Iterator<Integer> iterator = sendingQueue.iterator();
             while(iterator.hasNext()) {
-                DatagramPacket currentPacket = iterator.next();
+                Runtime rt = Runtime.getRuntime();
+                long total_mem = rt.totalMemory();
+                long free_mem = rt.freeMemory();
+                long used_mem = total_mem - free_mem;
+                System.out.println("Amount of used memory: " + used_mem);
+                int currentBeginInterval = iterator.next();
+                int currentEndInterval = min(numOfMsg, currentBeginInterval + packet_size - 1);;
+                DatagramPacket currentPacket = prepareSendingPacket(destIP, destPort, currentBeginInterval, currentEndInterval);
 
                 boolean isNotAcked = ackedSet.get(getHostId(destIP, destPort)) == null ||
-                        !ackedSet.get(getHostId(destIP, destPort)).contains(packetBeginMap.get(currentPacket));
+                        !ackedSet.get(getHostId(destIP, destPort)).contains(currentBeginInterval);
 
                 if (isNotAcked) {
-                    System.out.println("sending packet: " + packetBeginMap.get(currentPacket));
-                    sendPacket(currentPacket, socket, packetBeginMap.get(currentPacket), packetEndMap.get(currentPacket));
+                    System.out.println("sending packet: " + currentBeginInterval);
+                    sendPacket(currentPacket, socket, currentBeginInterval, currentEndInterval);
                 }
                 // else add another packet to the sending queue
                 else {
                     //remove the current packet from the sending queue
-                    System.out.println("removing packet: " + packetBeginMap.get(currentPacket));
+                    System.out.println("removing packet: " + currentBeginInterval);
                     iterator.remove();
                     // create another packet and add to array
                     if (intervalBegin <= numOfMsg) {
-                        DatagramPacket sendingPacket = prepareSendingPacket(
-                                destIP, destPort, packetBeginMap.get(currentPacket), packetEndMap.get(currentPacket));
-                        sendingQueue.add(sendingPacket);
+                        newAdditions.add(intervalBegin);
                         // update interval
                         intervalBegin = intervalEnd + 1;
-                        intervalEnd = min(numOfMsg, intervalBegin + packet_size - 1);
+                        intervalEnd = min(numOfMsg, intervalBegin + packet_size -1);
                     }
                 }
+            }
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
     }
@@ -261,29 +266,39 @@ public class Host {
             // block to receive
             try {socket.receive(packet);} catch (IOException e) {throw new RuntimeException(e);}
 
-            new Thread(() -> {
-                String senderIp = packet.getAddress().getHostAddress();
-                int senderPort = packet.getPort();
-                int senderId = getHostId(senderIp, senderPort);
+            String senderIp = packet.getAddress().getHostAddress();
+            int senderPort = packet.getPort();
+            int senderId = getHostId(senderIp, senderPort);
 
+//            System.out.println(java.lang.Thread.activeCount());
+            if(java.lang.Thread.activeCount() < 3) {
+                new Thread(() -> {
+                    // handle the packet
+                    handleRcvdMsg(socket, packet, senderIp, senderPort, senderId);
+                }).start();
+            }
+            else {
                 // handle the packet
-                String msg = new String(packet.getData(), 0, packet.getLength());
-                String[] msgSplit = msg.split(",");
-                int msgSeqNumber = Integer.parseInt(msgSplit[0]);
-
-                pp2pDeliver(senderId, Integer.parseInt(msgSplit[0]), Integer.parseInt(msgSplit[msgSplit.length-1]));
-
-                sendAck(senderIp, senderPort, msgSeqNumber, socket);
-
-            }).start();
+                handleRcvdMsg(socket, packet, senderIp, senderPort, senderId);
+            }
         }
+    }
+
+    private void handleRcvdMsg(DatagramSocket socket, DatagramPacket packet, String senderIp, int senderPort, int senderId) {
+        String msg = new String(packet.getData(), 0, packet.getLength());
+        String[] msgSplit = msg.split(",");
+        int msgSeqNumber = Integer.parseInt(msgSplit[0]);
+
+        pp2pDeliver(senderId, Integer.parseInt(msgSplit[0]), Integer.parseInt(msgSplit[msgSplit.length-1]));
+
+        sendAck(senderIp, senderPort, msgSeqNumber, socket);
     }
 
     private void log(String typeOfOperation, Integer senderId, Integer msgSeqNumber) {
         if(typeOfOperation.equals("d")) {
-            System.out.println("adding log to output 2");
+//            System.out.println("adding log to output 2");
             logs.addLog(typeOfOperation + " " + senderId + " " + msgSeqNumber.toString());
-            System.out.println("logs = " + logs.logString);
+//            System.out.println("logs = " + logs.logString);
         }
         else if(typeOfOperation.equals("b")) {
             logs.addLog(typeOfOperation + " " + msgSeqNumber.toString());
