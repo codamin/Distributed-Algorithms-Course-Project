@@ -223,7 +223,7 @@ public class Host {
                 }
             }
             try {
-                Thread.sleep(500);
+                Thread.sleep(300);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -301,6 +301,8 @@ public class Host {
             int senderPort = packet.getPort();
             int senderId = getHostId(senderIp, senderPort);
 
+//            handleRcvdMsg(socket, packet, senderIp, senderPort, senderId);
+
 //            System.out.println(java.lang.Thread.activeCount());
             if(java.lang.Thread.activeCount() < 2) {
                 new Thread(() -> {
@@ -309,7 +311,6 @@ public class Host {
                 }).start();
             }
             else {
-                // handle the packet
                 handleRcvdMsg(socket, packet, senderIp, senderPort, senderId);
             }
         }
@@ -322,7 +323,7 @@ public class Host {
         String[] msgSplit = msg.split(",");
         int msgSeqNumber = Integer.parseInt(msgSplit[0]);
 
-        System.out.println("msg:" + msg);
+//        System.out.println("msg:" + msg);
         pp2pDeliver(senderId, Integer.parseInt(msgSplit[0]), Integer.parseInt(msgSplit[msgSplit.length-1]));
 
         sendAck(senderIp, senderPort, msgSeqNumber, socket);
