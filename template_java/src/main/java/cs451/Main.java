@@ -1,5 +1,7 @@
 package cs451;
 
+import cs451.Primitives.Application;
+
 import java.io.*;
 import java.util.HashMap;
 import java.util.Scanner;
@@ -7,6 +9,7 @@ import java.util.Scanner;
 public class Main {
 
     static Host thisHost;
+    static Application applicationLayer;
     private static void handleSignal() {
         //immediately stop network packet processing
         System.out.println("Immediately stopping network packet processing.");
@@ -15,7 +18,7 @@ public class Main {
 
         if (thisHost != null) {
             System.out.println("Writing output.");
-            thisHost.writeLogs2Output();
+            applicationLayer.writeLogs2Output();
         }
     }
 
@@ -69,15 +72,13 @@ public class Main {
             throw new RuntimeException(e);
         }
 
-        int numOfMsg = 0, receiverID = 0;
+        int numOfMsg = 0;
         while (myReader.hasNextLine()) {
             String[] parsedLine = myReader.nextLine().split(" ");
             numOfMsg = Integer.parseInt(parsedLine[0]);
-            receiverID = Integer.parseInt(parsedLine[1]);
         }
 
         System.out.println("num of msg = " + numOfMsg);
-        System.out.println("receiver id = " + receiverID);
 
         System.out.println("Broadcasting and delivering messages...\n");
 
@@ -94,8 +95,9 @@ public class Main {
         
         // Set Hosts' output paths
         for(Host host_: parser.hosts()) {
-            host_.setOutputPath(parser.output());
+            host_.setApplicationLayer(applicationLayer);
         }
+        applicationLayer = new Application(parser.output());
 
         // find the host object corresponding to the current process
         for(Host host_: parser.hosts()) {
@@ -103,19 +105,8 @@ public class Main {
                 thisHost = host_;
         }
 
-        // check whether the current process is sender or receiver
-        if(parser.myId() == receiverID)
-            thisHost.startListening();
-        else {
-            // if current process is a sender
-            // find the receiver host
-            Host receiverHost = null;
-            for(Host host_: parser.hosts()) {
-                if(host_.getId() == receiverID)
-                    receiverHost = host_;
-            }
-            thisHost.startSending(receiverHost.getIp(), receiverHost.getPort(), numOfMsg);
-        }
+        thisHost.setHosts(parser.hosts());
+        thisHost.start(numOfMsg);
 
          // After a process finishes broadcasting,
          // it waits forever for the delivery of messages.
