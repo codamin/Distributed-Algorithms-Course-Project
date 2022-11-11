@@ -1,13 +1,13 @@
 package cs451.Primitives;
 
+import cs451.FIFOMessage;
 import cs451.Host;
 import cs451.Message;
+import cs451.PLMessage;
 
 import java.io.IOException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.min;
@@ -17,7 +17,11 @@ public class PLChannel {
     private Host broadcaster;
     private DatagramSocket socket;
     private HashMap<String, HashMap<Integer, Integer>> host2IdMap;
+    private volatile HashSet<Message> deliveredSet = new HashSet<>();
+    private volatile HashSet<Message> ackedSet = new HashSet<>();
 
+    private Queue<PLMessage> deliverQueue = new LinkedList<>();
+    private Queue<String> deliverQueue_msgContent = new LinkedList<>();
     private BEChannel upperChannel;
 
     public PLChannel(BEChannel beChannel, Host broadcaster, HashMap<String, HashMap<Integer, Integer>> host2IdMap) {
@@ -33,27 +37,12 @@ public class PLChannel {
 
         // start listening for acks and msgs
         new Thread(() -> listen()).start();
+        new Thread(() -> deliverFromQueue()).start();
     }
 
-    private volatile HashSet<LightMessage> deliveredSet = new HashSet<>();
-    private volatile HashSet<LightMessage> ackedSet = new HashSet<>();
-
-//    private Integer getHostId(String IP, Integer port) {
-//        return host2IdMap.get(IP + ":" + port);
-//    }
-//    private DatagramPacket prepareSendingPacket(String msg) {
-//        byte[] buf = msg.getBytes();
-//        DatagramPacket sendingPacket = new DatagramPacket(buf, buf.length);
-//        return sendingPacket;
-//    }
-
-//    private Boolean isMsgNotAcked(Integer senderId, Integer originalSenderId, Integer msgSeqNumber) {
-////        LightMessage lightMessage = new LightMessage(senderId, originalSenderId, msgSeqNumber);
-////        boolean isNotAcked = (ackedSet.get(senderId) == null || ! ackedSet.get(senderId).get(originalSenderId).contains(msgSeqNumber));
-////        return isNotAcked;
-//    }
-    public void pl_send(String destIP, Integer destPort, Message msg) {
-        String finalMsg = msg.getMsgContent() + "#" + msg.getOriginalSenderId() + "#" + msg.getSeqNumber();
+    public void pl_send(String destIP, Integer destPort, Integer senderId, FIFOMessage fifoMsg) {
+        System.out.println("ackedSet: " + ackedSet);
+        String finalMsg = fifoMsg.getMsgContent() + "#" + fifoMsg.getOriginalSenderId() + "#" + fifoMsg.getSeqNumber();
         byte[] buf = finalMsg.getBytes();
         DatagramPacket msgPacket;
         try {
@@ -63,8 +52,12 @@ public class PLChannel {
             throw new RuntimeException(e);
         }
 
-        while(! ackedSet.contains(new LightMessage(host2IdMap.get(destIP).get(destPort), msg.getOriginalSenderId(), msg.getSeqNumber()))) {
-            System.out.println(ackedSet);
+        PLMessage msg = new PLMessage(host2IdMap.get(destIP).get(destPort), fifoMsg.getOriginalSenderId(), fifoMsg.getSeqNumber());
+
+        int i = 0;
+        while(! ackedSet.contains(msg)) {
+            System.out.println("sending msg: " + msg);
+            System.out.println(i + ": sending message:" +  finalMsg + " to: " + destPort);
             try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
             try {
                 Thread.sleep(1000);
@@ -72,7 +65,10 @@ public class PLChannel {
                 throw new RuntimeException(e);
             }
 //            System.out.println("pl-send");
+            i += 1;
         }
+        System.out.println("*******************************" + ackedSet);
+        System.out.println("msg sent");
 //            try {
 //                Thread.sleep(300);
 //            } catch (InterruptedException e) {
@@ -80,22 +76,10 @@ public class PLChannel {
 //            }
     }
 
-//    public void addToAckedSet(Integer senderId, Integer originalSenderId, Integer msgSeqNumber) {
-//        if(isMsgNotAcked(senderId, originalSenderId, msgSeqNumber)) {
-//            if (ackedSet.get(senderId) == null) {
-//                ackedSet.put(senderId, new HashMap<>() {{
-//                    put(originalSenderId, new HashSet<>() {{
-//                        add(msgSeqNumber);
-//                    }});
-//                }});
-//            } else {
-//                ackedSet.get(senderId).get(originalSenderId).add(msgSeqNumber);
-//            }
-//        }
-//    }
 
     private void pl_ack(String destIP, Integer destPort, Integer originalSenderId, Integer msgSeqNumber) {
         String ackMsg = "A" + "#" + originalSenderId + "#" + msgSeqNumber;
+        System.out.println("sending ack: " + ackMsg);
         byte[] buf = ackMsg.getBytes();
         DatagramPacket sendingPacket;
         try {
@@ -108,6 +92,18 @@ public class PLChannel {
             socket.send(sendingPacket);
 //            System.out.println("sent " + ackMsg + "to" + destIP + " " + destPort);
         } catch (IOException e) {throw new RuntimeException(e);}
+    }
+
+    private void deliverFromQueue() {
+        while(true) {
+            PLMessage msg = deliverQueue.peek();
+            String msgContent = deliverQueue_msgContent.peek();
+            if(msg != null) {
+                pl_deliver(msg.getSenderId(), new FIFOMessage(msg.getSeqNumber(), msg.getOriginalSenderId(), msgContent));
+                deliverQueue.poll();
+                deliverQueue_msgContent.poll();
+            }
+        }
     }
 
     public void listen() {
@@ -124,13 +120,14 @@ public class PLChannel {
 
             String senderIp = rcvPacket.getAddress().getHostAddress();
             int senderPort = rcvPacket.getPort();
-            String msg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
+            String rcvdMsg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
 
 //            System.out.println("rcvd from " + senderIp + " " + senderPort + " : " + msg);
 
             int senderId = host2IdMap.get(senderIp).get(senderPort);
 
-            String[] msgSplit = msg.split("#");
+            System.out.println("############################################ received msg: " + rcvdMsg);
+            String[] msgSplit = rcvdMsg.split("#");
 
             // if the rcvd packet is an ack packet, add it to acked set
             Integer originalSenderId = Integer.parseInt(msgSplit[1]);
@@ -138,79 +135,30 @@ public class PLChannel {
 
             // if it is an ack message
 //            System.out.println(msgSplit[0]);
-            LightMessage lightMessage = new LightMessage(senderId, originalSenderId, msgSeqNumber);
+
             if (msgSplit[0].equals("A")) {
-                if(! ackedSet.contains(lightMessage))
-                    ackedSet.add(lightMessage);
+                PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
+
+                if(! ackedSet.contains(msg))
+                    ackedSet.add(msg);
             }
             // else if it is a deliver msg, deliver it to the upper channel, and ack it
             else {
+                PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
                 pl_ack(senderIp, senderPort, originalSenderId, msgSeqNumber);
-                pl_deliver(senderId, originalSenderId, msgSeqNumber, msgSplit[0]);
-            }
-        }
-    }
-
-    private synchronized void pl_deliver(Integer senderId, Integer originalSenderId, Integer msgSeqNumber, String msgContent) {
-        LightMessage lightMessage = new LightMessage(senderId, originalSenderId, msgSeqNumber);
-//        boolean isNotDelivered = deliveredSet.get(senderId) == null || ! deliveredSet.get(senderId).contains(msgSeqNumber);
-        if(!deliveredSet.contains(lightMessage)) {
-            // Deliver the message
-            upperChannel.be_deliver(senderId, new Message(msgSeqNumber, originalSenderId, msgContent));
-            deliveredSet.add(lightMessage);
-            // Add sequence number to the delivered set
-//            if (deliveredSet.get(senderId) == null) {
-//                deliveredSet.put(senderId, new HashSet<>());
-//                deliveredSet.get(senderId).add(msgSeqNumber);
-//            } else {
-//                deliveredSet.get(senderId).add(msgSeqNumber);
-//            }
-        }
-    }
-
-    private class LightMessage {
-        public Integer getSenderId() {
-            return senderId;
-        }
-
-        public Integer getOriginalSenderId() {
-            return originalSenderId;
-        }
-
-        public Integer getSeqNumber() {
-            return seqNumber;
-        }
-
-        private Integer senderId;
-        private Integer originalSenderId;
-        private Integer seqNumber;
-
-
-        public LightMessage(Integer senderId, Integer originalSenderId, Integer seqNumber) {
-            this.senderId = senderId;
-            this.originalSenderId = originalSenderId;
-            this.seqNumber = seqNumber;
-        }
-
-        @Override
-        public boolean equals(Object that_) {
-            if(that_ instanceof LightMessage) {
-                LightMessage that = (LightMessage) that_;
-                if(this.senderId == that.getSenderId()) {
-                    if(this.originalSenderId == that.getOriginalSenderId()) {
-                        if(this.seqNumber == that.getSeqNumber()) {
-                            return true;
-                        }
-                    }
+                if(!deliverQueue.contains(msg)) {
+                    deliverQueue.add(msg);
+                    deliverQueue_msgContent.add(msgSplit[0]);
                 }
+                System.out.println(deliverQueue.size());
             }
-            return false;
         }
-
-        @Override
-        public String toString()
-        {
-            return("s: " + senderId + " originId: " + originalSenderId + " sn: " + seqNumber);
+    }
+    private synchronized void pl_deliver(Integer senderId, FIFOMessage msg) {
+        if(!deliveredSet.contains(msg)) {
+            // Deliver the message
+            upperChannel.be_deliver(senderId, new FIFOMessage(msg.getSeqNumber(), msg.getOriginalSenderId(), msg.getMsgContent()));
+            deliveredSet.add(msg);
         }
     }
 }

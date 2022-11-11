@@ -1,5 +1,6 @@
 package cs451.Primitives;
 
+import cs451.FIFOMessage;
 import cs451.Host;
 import cs451.Message;
 
@@ -15,7 +16,7 @@ public class FIFOChannel {
     private List<Host> hostsList;
 
     //Map Process --> Array of pending msgs
-    private ArrayList<Message> fifo_pendingList = new ArrayList<>();
+    private ArrayList<FIFOMessage> fifo_pendingList = new ArrayList<>();
     private HashMap<Integer, Integer> next = new HashMap<>();
     Integer lsn;
     URBChannel urbChannel;
@@ -33,10 +34,10 @@ public class FIFOChannel {
     public void fifo_broadcast(String msg) {
         System.out.println("fifo broadcast...");
         lsn += 1;
-        urbChannel.urb_broadcast(this.broadcaster.getId(), new Message(lsn, broadcaster.getId(), msg));
+        urbChannel.urb_broadcast(this.broadcaster.getId(), new FIFOMessage(lsn, broadcaster.getId(), msg));
     }
 
-    public void fifo_deliver(Message msg) {
+    public void fifo_deliver(FIFOMessage msg) {
         System.out.println("fifo deliver...");
         //Add current msg to pending list --> pending := pending ∪ {(s, m, sn)};
         Integer s = msg.getOriginalSenderId();
@@ -50,9 +51,9 @@ public class FIFOChannel {
             IsPrevRemaining = false;
 
             //loop over messages
-            Iterator<Message> iterator = this.fifo_pendingList.iterator();
+            Iterator<FIFOMessage> iterator = this.fifo_pendingList.iterator();
             while(iterator.hasNext()) {
-                Message pendingMsg = iterator.next();
+                FIFOMessage pendingMsg = iterator.next();
 
                 if(s == pendingMsg.getOriginalSenderId()) {
                     if (pendingMsg.getSeqNumber() == this.next.get(s)) {

@@ -89,9 +89,9 @@ public class Main {
         }
 
         // Set host2IdMap in each host
-        for(Host host_: parser.hosts()) {
-            host_.setHost2IdMap(host2IdMap);
-        }
+//        for(Host host_: parser.hosts()) {
+//            host_.setHost2IdMap(host2IdMap);
+//        }
         
         // Set Hosts' output paths
         for(Host host_: parser.hosts()) {

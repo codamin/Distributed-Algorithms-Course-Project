@@ -1,5 +1,6 @@
 package cs451.Primitives;
 
+import cs451.FIFOMessage;
 import cs451.Host;
 import cs451.Message;
 
@@ -39,16 +40,18 @@ public class BEChannel {
 
     }
 
-    public void be_broadcast(Message msg) {
+    public void be_broadcast(FIFOMessage fifoMsg) {
 
         // do a for loop
         for(Host host: this.hostsList) {
             System.out.println("be broadcast to host: " + host.getId());
-            plChannel.pl_send(host.getIp(), host.getPort(), msg);
+            System.out.println("broadcasting msg:" + fifoMsg);
+            plChannel.pl_send(host.getIp(), host.getPort(), broadcaster.getId(), fifoMsg);
         }
+        System.out.println("finished be broadcasting%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
     }
 
-    public void be_deliver(int senderId, Message msg) {
+    public void be_deliver(Integer senderId, FIFOMessage msg) {
         // deliver : call the delivery function of urb
         System.out.println("in be delivery...");
         upperChannel.urb_deliver(senderId, msg);

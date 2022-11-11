@@ -40,8 +40,6 @@ public class Host {
 
     private String outputPath = "";
 
-    private HashMap<String, Integer> host2IdMap;
-
     public boolean populate(String idString, String ipString, String portString) {
         try {
             id = Integer.parseInt(idString);
@@ -84,13 +82,9 @@ public class Host {
         return port;
     }
 
-    public void setHost2IdMap(HashMap<String, Integer> host2IdMap) {
-        this.host2IdMap = host2IdMap;
-    }
-
     public void start(int numOfMsg) {
         FIFOChannel fifo_channel = new FIFOChannel(this.hostsList, this);
         // do batching
-        fifo_channel.fifo_broadcast("SAMPLE MESSAGE");
+        fifo_channel.fifo_broadcast("MMM");
     }
 }
