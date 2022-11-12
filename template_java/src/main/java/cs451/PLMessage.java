@@ -20,13 +20,17 @@ public class PLMessage extends Message{
             PLMessage that = (PLMessage) that_;
             if(this.originalSenderId == that.originalSenderId) {
                 if(this.senderId == that.senderId) {
-                    if (this.seqNumber == that.getSeqNumber()) {
+                    if (this.seqNumber == that.seqNumber) {
                         return true;
                     }
                 }
             }
         }
         return false;
+    }
+
+    public String toString() {
+        return senderId + "#" + originalSenderId + "#" + seqNumber;
     }
 
     @Override

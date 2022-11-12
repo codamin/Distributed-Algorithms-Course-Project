@@ -2,7 +2,6 @@ package cs451.Primitives;
 
 import cs451.FIFOMessage;
 import cs451.Host;
-import cs451.Message;
 
 import java.util.ArrayList;
 import java.util.HashMap;

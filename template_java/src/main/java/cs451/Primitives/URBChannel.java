@@ -2,9 +2,7 @@ package cs451.Primitives;
 
 import cs451.FIFOMessage;
 import cs451.Host;
-import cs451.Message;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,9 +15,9 @@ public class URBChannel {
 
     private FIFOChannel upperChannel;
 
-    HashSet<Message> urb_deliveredSet = new HashSet<>();
-    HashSet<Message> urb_pendingSet = new HashSet<>();
-    HashMap<Message, HashSet<Integer>> urb_ackedMap = new HashMap<>();
+    private HashSet<FIFOMessage> urb_deliveredSet = new HashSet<>();
+    private volatile HashSet<FIFOMessage> urb_pendingSet = new HashSet<>();
+    private HashMap<FIFOMessage, HashSet<Integer>> urb_ackedMap = new HashMap<>();
 
     public URBChannel(List<Host> hostsList, FIFOChannel fifoChannel, Host broadcaster) {
         this.hostsList = hostsList;
@@ -56,6 +54,7 @@ public class URBChannel {
         if(! urb_pendingSet.contains(msg)) {
             System.out.println("Relaying msg: " + msg + " sent from " + senderId);
 
+            System.out.println(urb_pendingSet.contains(msg));
             urb_pendingSet.add(msg);
              //relay message
             beChannel.be_broadcast(msg);
@@ -71,7 +70,7 @@ public class URBChannel {
 
     private void checkAndDeliverToFiFo(FIFOMessage msg) {
         System.out.println("urb_ackedMap.get(msg).size() : " + urb_ackedMap.get(msg).size());
-        if(urb_ackedMap.get(msg).size() > (this.hostsList.size()+1)/2) {
+        if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
             if(! urb_deliveredSet.contains(msg.getSeqNumber())) {
                 urb_deliveredSet.add(msg);
                 System.out.println("delivered to fifo channel...................");

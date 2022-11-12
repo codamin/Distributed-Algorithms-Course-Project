@@ -2,24 +2,19 @@ package cs451.Primitives;
 
 import cs451.FIFOMessage;
 import cs451.Host;
-import cs451.Message;
 import cs451.PLMessage;
 
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
 
-import static java.lang.Math.floorDiv;
-import static java.lang.Math.min;
-
 public class PLChannel {
 
     private Host broadcaster;
     private DatagramSocket socket;
     private HashMap<String, HashMap<Integer, Integer>> host2IdMap;
-    private volatile HashSet<Message> deliveredSet = new HashSet<>();
-    private volatile HashSet<Message> ackedSet = new HashSet<>();
-
+    private HashSet<PLMessage> deliveredSet = new HashSet<>();
+    private HashSet<PLMessage> ackedSet = new HashSet<>();
     private Queue<PLMessage> deliverQueue = new LinkedList<>();
     private Queue<String> deliverQueue_msgContent = new LinkedList<>();
     private BEChannel upperChannel;
@@ -56,8 +51,8 @@ public class PLChannel {
 
         int i = 0;
         while(! ackedSet.contains(msg)) {
-            System.out.println("sending msg: " + msg);
-            System.out.println(i + ": sending message:" +  finalMsg + " to: " + destPort);
+//            System.out.println("sending msg: " + msg);
+//            System.out.println(i + ": sending message:" +  finalMsg + " to: " + destPort);
             try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
             try {
                 Thread.sleep(1000);
@@ -67,15 +62,14 @@ public class PLChannel {
 //            System.out.println("pl-send");
             i += 1;
         }
-        System.out.println("*******************************" + ackedSet);
-        System.out.println("msg sent");
+//        System.out.println("*******************************" + ackedSet);
+//        System.out.println("msg sent");
 //            try {
 //                Thread.sleep(300);
 //            } catch (InterruptedException e) {
 //                throw new RuntimeException(e);
 //            }
     }
-
 
     private void pl_ack(String destIP, Integer destPort, Integer originalSenderId, Integer msgSeqNumber) {
         String ackMsg = "A" + "#" + originalSenderId + "#" + msgSeqNumber;
@@ -96,10 +90,19 @@ public class PLChannel {
 
     private void deliverFromQueue() {
         while(true) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
             PLMessage msg = deliverQueue.peek();
             String msgContent = deliverQueue_msgContent.peek();
+//            System.out.println("heeeeeereeererererere %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+
             if(msg != null) {
-                pl_deliver(msg.getSenderId(), new FIFOMessage(msg.getSeqNumber(), msg.getOriginalSenderId(), msgContent));
+//                System.out.println("delivering %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+                pl_deliver(msg, msgContent);
                 deliverQueue.poll();
                 deliverQueue_msgContent.poll();
             }
@@ -126,7 +129,7 @@ public class PLChannel {
 
             int senderId = host2IdMap.get(senderIp).get(senderPort);
 
-            System.out.println("############################################ received msg: " + rcvdMsg);
+//            System.out.println("############################################ received msg: " + rcvdMsg);
             String[] msgSplit = rcvdMsg.split("#");
 
             // if the rcvd packet is an ack packet, add it to acked set
@@ -154,10 +157,10 @@ public class PLChannel {
             }
         }
     }
-    private synchronized void pl_deliver(Integer senderId, FIFOMessage msg) {
+    private synchronized void pl_deliver(PLMessage msg, String msgContent) {
         if(!deliveredSet.contains(msg)) {
             // Deliver the message
-            upperChannel.be_deliver(senderId, new FIFOMessage(msg.getSeqNumber(), msg.getOriginalSenderId(), msg.getMsgContent()));
+            upperChannel.be_deliver(msg.getSenderId(), new FIFOMessage(msg.getSeqNumber(), msg.getOriginalSenderId(), msgContent));
             deliveredSet.add(msg);
         }
     }

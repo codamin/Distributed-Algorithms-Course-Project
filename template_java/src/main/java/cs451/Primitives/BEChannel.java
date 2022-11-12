@@ -2,7 +2,6 @@ package cs451.Primitives;
 
 import cs451.FIFOMessage;
 import cs451.Host;
-import cs451.Message;
 
 import java.util.HashMap;
 import java.util.List;
@@ -53,7 +52,7 @@ public class BEChannel {
 
     public void be_deliver(Integer senderId, FIFOMessage msg) {
         // deliver : call the delivery function of urb
-        System.out.println("in be delivery...");
+        System.out.println("in be delivery..................................................");
         upperChannel.urb_deliver(senderId, msg);
     }
 }

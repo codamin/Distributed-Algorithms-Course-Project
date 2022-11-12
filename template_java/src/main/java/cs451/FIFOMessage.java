@@ -17,17 +17,22 @@ public class FIFOMessage extends Message {
 
     @Override
     public boolean equals(Object that_) {
-        if(that_ instanceof Message) {
+        if(that_ instanceof FIFOMessage) {
             FIFOMessage that = (FIFOMessage) that_;
             if(this.originalSenderId == that.originalSenderId) {
-                if(this.msgContent == that.getMsgContent()) {
-                    if (this.seqNumber == that.getSeqNumber()) {
+                if(this.msgContent.equals(that.msgContent)) {
+                    if (this.seqNumber == that.seqNumber) {
                         return true;
                     }
                 }
             }
         }
+        System.out.println("not equal");
         return false;
+    }
+
+    public String toString() {
+        return originalSenderId + "#" + seqNumber + "#" + msgContent;
     }
 
     @Override
