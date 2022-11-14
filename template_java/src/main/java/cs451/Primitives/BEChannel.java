@@ -43,16 +43,16 @@ public class BEChannel {
 
         // do a for loop
         for(Host host: this.hostsList) {
-            System.out.println("be broadcast to host: " + host.getId());
-            System.out.println("broadcasting msg:" + fifoMsg);
+//            System.out.println("be broadcast to host: " + host.getId());
+//            System.out.println("broadcasting msg:" + fifoMsg);
             plChannel.pl_send(host.getIp(), host.getPort(), broadcaster.getId(), fifoMsg);
         }
-        System.out.println("finished be broadcasting%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+//        System.out.println("finished be broadcasting msg:" + fifoMsg);
     }
 
     public void be_deliver(Integer senderId, FIFOMessage msg) {
         // deliver : call the delivery function of urb
-        System.out.println("in be delivery..................................................");
+//        System.out.println("in be delivery..................................................");
         upperChannel.urb_deliver(senderId, msg);
     }
 }

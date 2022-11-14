@@ -15,7 +15,7 @@ public class PLChannel {
     private HashMap<String, HashMap<Integer, Integer>> host2IdMap;
     private HashSet<PLMessage> deliveredSet = new HashSet<>();
     private HashSet<PLMessage> ackedSet = new HashSet<>();
-    private Queue<PLMessage> deliverQueue = new LinkedList<>();
+    private volatile Queue<PLMessage> deliverQueue = new LinkedList<>();
     private Queue<String> deliverQueue_msgContent = new LinkedList<>();
     private BEChannel upperChannel;
 
@@ -36,7 +36,7 @@ public class PLChannel {
     }
 
     public void pl_send(String destIP, Integer destPort, Integer senderId, FIFOMessage fifoMsg) {
-        System.out.println("ackedSet: " + ackedSet);
+//        System.out.println("ackedSet: " + ackedSet);
         String finalMsg = fifoMsg.getMsgContent() + "#" + fifoMsg.getOriginalSenderId() + "#" + fifoMsg.getSeqNumber();
         byte[] buf = finalMsg.getBytes();
         DatagramPacket msgPacket;
@@ -54,11 +54,11 @@ public class PLChannel {
 //            System.out.println("sending msg: " + msg);
 //            System.out.println(i + ": sending message:" +  finalMsg + " to: " + destPort);
             try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
 //            System.out.println("pl-send");
             i += 1;
         }
@@ -73,7 +73,7 @@ public class PLChannel {
 
     private void pl_ack(String destIP, Integer destPort, Integer originalSenderId, Integer msgSeqNumber) {
         String ackMsg = "A" + "#" + originalSenderId + "#" + msgSeqNumber;
-        System.out.println("sending ack: " + ackMsg);
+//        System.out.println("sending ack: " + ackMsg);
         byte[] buf = ackMsg.getBytes();
         DatagramPacket sendingPacket;
         try {
@@ -90,17 +90,17 @@ public class PLChannel {
 
     private void deliverFromQueue() {
         while(true) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
 
             PLMessage msg = deliverQueue.peek();
             String msgContent = deliverQueue_msgContent.peek();
 //            System.out.println("heeeeeereeererererere %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
 
-            if(msg != null) {
+            if((msg != null) && (msgContent != null)) {
 //                System.out.println("delivering %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
                 pl_deliver(msg, msgContent);
                 deliverQueue.poll();
@@ -153,7 +153,7 @@ public class PLChannel {
                     deliverQueue.add(msg);
                     deliverQueue_msgContent.add(msgSplit[0]);
                 }
-                System.out.println(deliverQueue.size());
+//                System.out.println(deliverQueue.size());
             }
         }
     }

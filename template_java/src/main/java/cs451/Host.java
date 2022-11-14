@@ -85,6 +85,8 @@ public class Host {
     public void start(int numOfMsg) {
         FIFOChannel fifo_channel = new FIFOChannel(this.hostsList, this);
         // do batching
-        fifo_channel.fifo_broadcast("MMM");
+        for(int i = 0; i < numOfMsg; i++) {
+            fifo_channel.fifo_broadcast(Integer.toString(i));
+        }
     }
 }

@@ -27,7 +27,6 @@ public class FIFOMessage extends Message {
                 }
             }
         }
-        System.out.println("not equal");
         return false;
     }
 

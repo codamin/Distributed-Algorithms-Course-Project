@@ -92,12 +92,13 @@ public class Main {
 //        for(Host host_: parser.hosts()) {
 //            host_.setHost2IdMap(host2IdMap);
 //        }
-        
+
+        applicationLayer = new Application(parser.output());
+
         // Set Hosts' output paths
         for(Host host_: parser.hosts()) {
             host_.setApplicationLayer(applicationLayer);
         }
-        applicationLayer = new Application(parser.output());
 
         // find the host object corresponding to the current process
         for(Host host_: parser.hosts()) {
