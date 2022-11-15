@@ -37,7 +37,7 @@ public class URBChannel {
 
         //************ ack[m] := ack[m] ∪ {p}; **************
         ///////////////////////////////////////////
-//        System.out.println("in urb delivery:");
+        System.out.println("in urb delivery:");
 //        System.out.println("from sender: " + senderId + " received msg:");
 //        System.out.println(msg);
 
@@ -68,6 +68,8 @@ public class URBChannel {
     }
 
     private void checkAndDeliverToFiFo(FIFOMessage msg) {
+//        System.out.println(this.hostsList.size()/2);
+//        System.out.println(urb_ackedMap);
         if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
             if(! urb_deliveredSet.contains(msg.getSeqNumber())) {
                 urb_deliveredSet.add(msg);

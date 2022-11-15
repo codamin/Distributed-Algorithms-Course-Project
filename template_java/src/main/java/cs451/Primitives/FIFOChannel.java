@@ -35,6 +35,7 @@ public class FIFOChannel {
         lsn += 1;
         this.broadcaster.getApplicationLayer().log("b", null, lsn);
         urbChannel.urb_broadcast(this.broadcaster.getId(), new FIFOMessage(lsn, broadcaster.getId(), msg));
+//        System.out.println("fifo finished........");
     }
 
     public void fifo_deliver(FIFOMessage msg) {
@@ -47,7 +48,6 @@ public class FIFOChannel {
 
         boolean IsPrevRemaining = true;
         while(IsPrevRemaining) {
-//            System.out.println("stuckkkkkkkkkkkkk*****************");
             IsPrevRemaining = false;
 
             //loop over messages
@@ -62,7 +62,6 @@ public class FIFOChannel {
                         this.next.put(s, this.next.get(s) + 1);
                         //pending := pending \ {(s, m, sn)};
                         iterator.remove();
-//                    removePendingBuffer.add(pendingMsg);
                         //trigger < frb, Deliver | s, m >;
                         this.broadcaster.getApplicationLayer().log("d", s, pendingMsg.getSeqNumber());
                     }

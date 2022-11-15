@@ -9,34 +9,54 @@ public class Application {
 
     private String outputPath;
 
+    private Integer lineCapacity = 10;
+    private Integer numLines = 0;
+
+    PrintWriter writer;
+
     public Application(String outputPath_) {
         outputPath = outputPath_;
     }
 
     public void writeLogs2Output() {
-        PrintWriter writer;
         try {
             writer = new PrintWriter(new FileOutputStream(new File(outputPath), true));
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
-        writer.println(logs.logString);
+        writer.print(logs.logString);
         writer.close();
     }
 
     public void log(String typeOfOperation, Integer senderId, Integer msgSeqNumber) {
+        if(numLines.equals(lineCapacity)) {
+            this.flush();
+            numLines = 0;
+        }
+        numLines += 1;
         if(typeOfOperation.equals("d")) {
-//            System.out.println("adding log to output 2");
             logs.addLog(typeOfOperation + " " + senderId + " " + msgSeqNumber.toString());
-//            System.out.println("logs = " + logs.logString);
         }
         else if(typeOfOperation.equals("b")) {
             logs.addLog(typeOfOperation + " " + msgSeqNumber.toString());
         }
     }
-
+    private void flush() {
+        try {
+            writer = new PrintWriter(new FileOutputStream(new File(outputPath), true));
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        writer.print(logs.logString);
+        writer.close();
+        this.logs.empty();
+    }
     class Logs {
         public String logString = "";
+
+        public void empty() {
+            this.logString = "";
+        }
         public synchronized void addLog(String addition) {
             logString += addition;
             logString += "\n";
