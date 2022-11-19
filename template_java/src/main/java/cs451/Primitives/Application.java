@@ -9,7 +9,7 @@ public class Application {
 
     private String outputPath;
 
-    private Integer lineCapacity = 10;
+    private Integer lineCapacity = 1;
     private Integer numLines = 0;
 
     PrintWriter writer;
@@ -28,7 +28,7 @@ public class Application {
         writer.close();
     }
 
-    public void log(String typeOfOperation, Integer senderId, Integer msgSeqNumber) {
+    public synchronized void log(String typeOfOperation, Integer senderId, Integer msgSeqNumber) {
         if(numLines.equals(lineCapacity)) {
             this.flush();
             numLines = 0;

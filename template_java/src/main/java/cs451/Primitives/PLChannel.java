@@ -4,9 +4,11 @@ import cs451.FIFOMessage;
 import cs451.Host;
 import cs451.PLMessage;
 
+import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class PLChannel {
 
@@ -18,9 +20,9 @@ public class PLChannel {
     private volatile Queue<PLMessage> deliverQueue = new LinkedList<>();
     private Queue<String> deliverQueue_msgContent = new LinkedList<>();
 
-    private volatile Queue<DatagramPacket> sendingQueue= new LinkedList<>();
+    private volatile LinkedBlockingQueue<DatagramPacket> resendingQueue= new LinkedBlockingQueue<>(10);
 
-    private volatile Queue<PLMessage> sendingQueueMsg= new LinkedList<>();
+    private volatile LinkedBlockingQueue<PLMessage> resendingQueueMsg = new LinkedBlockingQueue<>(10);
 
     private BEChannel upperChannel;
 
@@ -43,20 +45,34 @@ public class PLChannel {
 
     private void sendFromQueue() {
         while(true) {
-            DatagramPacket currentPacket = sendingQueue.peek();
-            PLMessage currentMessage = sendingQueueMsg.peek();
+//            System.out.println("at the beginning g of send from queue");
+            Iterator<DatagramPacket> packetIterator = resendingQueue.iterator();
+            Iterator<PLMessage> plMessageIterator = resendingQueueMsg.iterator();
 
-            System.out.println(sendingQueue.size() + "," + sendingQueueMsg.size());
+            while(packetIterator.hasNext() && plMessageIterator.hasNext()) {
+                DatagramPacket currentPacket = packetIterator.next();
+                PLMessage currentPLMessage = plMessageIterator.next();
 
-            if((currentPacket != null) && (currentMessage != null) && (sendingQueue.size() == sendingQueueMsg.size())) {
-                sendingQueue.poll();
-                sendingQueueMsg.poll();
-                while(! ackedSet.contains(currentMessage)) {
-//                    System.out.println(i);
+                if(! ackedSet.contains(currentPLMessage)) {
                     try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
                 }
-//                System.out.println(Thread.currentThread().getName() + ": sent msg: " + currentMessage);
+                else {
+                    resendingQueue.remove();
+                    resendingQueueMsg.remove();
+                }
             }
+//            DatagramPacket currentPacket = resendingQueue.peek();
+//            PLMessage currentMessage = resendingQueueMsg.peek();
+//
+////            System.out.println(sendingQueue.size() + "," + sendingQueueMsg.size());
+//
+//            if((currentPacket != null) && (currentMessage != null) && (resendingQueue.size() == resendingQueueMsg.size())) {
+//                resendingQueue.poll();
+//                resendingQueueMsg.poll();
+//                while(! ackedSet.contains(currentMessage)) {
+//                    try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
+//                }
+//            }
         }
     }
 
@@ -72,16 +88,19 @@ public class PLChannel {
             throw new RuntimeException(e);
         }
 
+
         // create a msg with sender=dest to see if it is acked or not
         PLMessage msg = new PLMessage(host2IdMap.get(destIP).get(destPort), fifoMsg.getOriginalSenderId(), fifoMsg.getSeqNumber());
 
-        sendingQueue.add(msgPacket);
-        sendingQueueMsg.add(msg);
-//        System.out.println(Thread.currentThread().getName() + " added msg: " + msg + "to sending queue" );
-//        System.out.println(sendingQueue.size());
-//        System.out.println(sendingQueueMsg.size());
-//        while(! ackedSet.contains(msg)) {
-//            try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
+        // send it once yourself
+        try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
+
+        // then add it to resend queue which will check and resend
+//        try {
+//            resendingQueue.put(msgPacket);
+//            resendingQueueMsg.put(msg);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
 //        }
     }
 
@@ -132,8 +151,6 @@ public class PLChannel {
             int senderPort = rcvPacket.getPort();
             String rcvdMsg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
 
-//            System.out.println("rcvd from " + senderIp + " " + senderPort + " : " + rcvdMsg);
-
             int senderId = host2IdMap.get(senderIp).get(senderPort);
 
             String[] msgSplit = rcvdMsg.split("#");
@@ -144,6 +161,7 @@ public class PLChannel {
 
             // if it is an ack message
 //            System.out.println(msgSplit[0]);
+            System.out.println("rcvd from " + senderIp + " " + senderPort + " : " + rcvdMsg);
 
             if(msgSplit[0].equals("A")) {
                 PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
@@ -159,9 +177,10 @@ public class PLChannel {
                 PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
 //                System.out.println(Thread.currentThread().getName() + ": sending ack for: " + msg);
                 pl_ack(senderIp, senderPort, originalSenderId, msgSeqNumber);
-                if(! deliveredSet.contains(msg)) {
+                if(! deliveredSet.contains(msg) && ! deliverQueue.contains(msg)) {
                     deliverQueue.add(msg);
                     deliverQueue_msgContent.add(msgSplit[0]);
+                    System.out.println("msg " + msg + " added to deliver queue");
                 }
             }
         }

@@ -43,9 +43,11 @@ public class URBChannel {
 
         if(urb_ackedMap.get(msg) != null) {
             urb_ackedMap.get(msg).add(senderId);
+            urb_ackedMap.get(msg).add(broadcaster.getId());
         }
         else {
-            urb_ackedMap.put(msg, new HashSet<>(){{add(senderId);}});
+            urb_ackedMap.put(msg, new HashSet<>(){{add(senderId); add(broadcaster.getId());
+            }});
         }
 
 //        System.out.println("urb_ackedMap:");
@@ -59,18 +61,17 @@ public class URBChannel {
         if(! urb_pendingSet.contains(msg)) {
             urb_pendingSet.add(msg);
              //relay message
+//            beChannel.be_broadcast(msg, new HashSet<>() {{add(senderId); add(broadcaster.getId());}});
             beChannel.be_broadcast(msg);
 //           // deliver if can deliver
-        }
-        else {
         }
         checkAndDeliverToFiFo(msg);
     }
 
     private void checkAndDeliverToFiFo(FIFOMessage msg) {
-//        System.out.println(this.hostsList.size()/2);
-//        System.out.println(urb_ackedMap);
-        if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
+//        if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
+        if(urb_ackedMap.get(msg).size() > 0) {
+            System.out.println("i am delivering sir");
             if(! urb_deliveredSet.contains(msg.getSeqNumber())) {
                 urb_deliveredSet.add(msg);
 //                System.out.println("delivered to fifo channel...................");

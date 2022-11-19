@@ -3,7 +3,9 @@ package cs451.Primitives;
 import cs451.FIFOMessage;
 import cs451.Host;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 public class BEChannel {
@@ -40,7 +42,7 @@ public class BEChannel {
     public void be_broadcast(FIFOMessage fifoMsg) {
         // do a for loop
         for(Host host: this.hostsList) {
-//            System.out.println("broadcasting to: " + host.getId());
+            System.out.println("broadcasting msg:" + fifoMsg);
             plChannel.pl_send(host.getIp(), host.getPort(), broadcaster.getId(), fifoMsg);
         }
     }

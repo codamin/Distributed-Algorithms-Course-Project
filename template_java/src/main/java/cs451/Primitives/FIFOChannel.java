@@ -67,12 +67,6 @@ public class FIFOChannel {
                     }
                 }
             }
-            // remove the remove buffer
-//            for(String removedPending: removePendingBuffer) {
-//                this.fifo_pendingMap.get(delivererId).remove(removedPending);
-//            }
         }
-
-        System.out.println("finished fifo delivery...................");
     }
 }
