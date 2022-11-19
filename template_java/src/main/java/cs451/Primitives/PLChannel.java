@@ -20,7 +20,7 @@ public class PLChannel {
     private volatile Queue<PLMessage> deliverQueue = new LinkedList<>();
     private Queue<String> deliverQueue_msgContent = new LinkedList<>();
 
-    private Integer CAPACITY = 10;
+    private Integer CAPACITY = 3000;
     private volatile LinkedBlockingQueue<DatagramPacket> resendingQueue= new LinkedBlockingQueue<>(CAPACITY);
 
     private volatile LinkedBlockingQueue<PLMessage> resendingQueueMsg = new LinkedBlockingQueue<>(CAPACITY);
@@ -46,6 +46,11 @@ public class PLChannel {
 
     private void sendFromQueue() {
         while(true) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
 //            System.out.println("at the beginning g of send from queue");
             Iterator<DatagramPacket> packetIterator = resendingQueue.iterator();
             Iterator<PLMessage> plMessageIterator = resendingQueueMsg.iterator();
@@ -69,18 +74,6 @@ public class PLChannel {
                     plMessageIterator.remove();
                 }
             }
-//            DatagramPacket currentPacket = resendingQueue.peek();
-//            PLMessage currentMessage = resendingQueueMsg.peek();
-//
-////            System.out.println(sendingQueue.size() + "," + sendingQueueMsg.size());
-//
-//            if((currentPacket != null) && (currentMessage != null) && (resendingQueue.size() == resendingQueueMsg.size())) {
-//                resendingQueue.poll();
-//                resendingQueueMsg.poll();
-//                while(! ackedSet.contains(currentMessage)) {
-//                    try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
-//                }
-//            }
         }
     }
 

@@ -20,10 +20,8 @@ public class FIFOMessage extends Message {
         if(that_ instanceof FIFOMessage) {
             FIFOMessage that = (FIFOMessage) that_;
             if(this.originalSenderId == that.originalSenderId) {
-                if(this.msgContent.equals(that.msgContent)) {
-                    if (this.seqNumber == that.seqNumber) {
-                        return true;
-                    }
+                if (this.seqNumber == that.seqNumber) {
+                    return true;
                 }
             }
         }
@@ -36,6 +34,6 @@ public class FIFOMessage extends Message {
 
     @Override
     public int hashCode() {
-        return Objects.hash(seqNumber, originalSenderId, msgContent);
+        return Objects.hash(seqNumber, originalSenderId);
     }
 }
