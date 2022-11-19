@@ -69,9 +69,9 @@ public class URBChannel {
     }
 
     private void checkAndDeliverToFiFo(FIFOMessage msg) {
-//        if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
-        if(urb_ackedMap.get(msg).size() > 0) {
-            System.out.println("i am delivering sir");
+        System.out.println(urb_ackedMap);
+        if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
+//            System.out.println("i am delivering sir");
             if(! urb_deliveredSet.contains(msg.getSeqNumber())) {
                 urb_deliveredSet.add(msg);
 //                System.out.println("delivered to fifo channel...................");

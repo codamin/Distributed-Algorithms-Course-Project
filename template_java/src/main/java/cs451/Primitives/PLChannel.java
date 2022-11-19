@@ -20,9 +20,10 @@ public class PLChannel {
     private volatile Queue<PLMessage> deliverQueue = new LinkedList<>();
     private Queue<String> deliverQueue_msgContent = new LinkedList<>();
 
-    private volatile LinkedBlockingQueue<DatagramPacket> resendingQueue= new LinkedBlockingQueue<>(10);
+    private Integer CAPACITY = 10;
+    private volatile LinkedBlockingQueue<DatagramPacket> resendingQueue= new LinkedBlockingQueue<>(CAPACITY);
 
-    private volatile LinkedBlockingQueue<PLMessage> resendingQueueMsg = new LinkedBlockingQueue<>(10);
+    private volatile LinkedBlockingQueue<PLMessage> resendingQueueMsg = new LinkedBlockingQueue<>(CAPACITY);
 
     private BEChannel upperChannel;
 
@@ -49,16 +50,23 @@ public class PLChannel {
             Iterator<DatagramPacket> packetIterator = resendingQueue.iterator();
             Iterator<PLMessage> plMessageIterator = resendingQueueMsg.iterator();
 
-            while(packetIterator.hasNext() && plMessageIterator.hasNext()) {
+            int i = 0;
+            while(i < CAPACITY && packetIterator.hasNext() && plMessageIterator.hasNext()) {
+                i ++;
+//                System.out.println("queue size: " + resendingQueue.size());
                 DatagramPacket currentPacket = packetIterator.next();
                 PLMessage currentPLMessage = plMessageIterator.next();
+                System.out.println("current element:" + currentPLMessage);
 
                 if(! ackedSet.contains(currentPLMessage)) {
+//                    System.out.println("re-sending:" + currentPLMessage.getOriginalSenderId() + "#" + currentPLMessage.getSeqNumber());
                     try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
                 }
-                else {
-                    resendingQueue.remove();
-                    resendingQueueMsg.remove();
+                else if(ackedSet.contains(currentPLMessage)) {
+                    System.out.println(resendingQueueMsg);
+                    System.out.println("msg " + currentPLMessage.getOriginalSenderId() + "#" + currentPLMessage.getSeqNumber() + " is already acked by " + currentPLMessage.getSenderId());
+                    packetIterator.remove();
+                    plMessageIterator.remove();
                 }
             }
 //            DatagramPacket currentPacket = resendingQueue.peek();
@@ -96,12 +104,12 @@ public class PLChannel {
         try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
 
         // then add it to resend queue which will check and resend
-//        try {
-//            resendingQueue.put(msgPacket);
-//            resendingQueueMsg.put(msg);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
+        try {
+            resendingQueue.put(msgPacket);
+            resendingQueueMsg.put(msg);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void pl_ack(String destIP, Integer destPort, Integer originalSenderId, Integer msgSeqNumber) {
@@ -159,13 +167,13 @@ public class PLChannel {
             Integer originalSenderId = Integer.parseInt(msgSplit[1]);
             Integer msgSeqNumber = Integer.parseInt(msgSplit[2]);
 
+            System.out.println("rcvd from " + senderId + " : " + rcvdMsg);
+
             // if it is an ack message
 //            System.out.println(msgSplit[0]);
-            System.out.println("rcvd from " + senderIp + " " + senderPort + " : " + rcvdMsg);
 
             if(msgSplit[0].equals("A")) {
                 PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
-
                 if(! ackedSet.contains(msg)) {
 //                    System.out.println("added " + msg + " to acked set");
                     ackedSet.add(msg);
@@ -175,12 +183,12 @@ public class PLChannel {
             // else if it is a deliver msg, deliver it to the upper channel, and ack it
             else {
                 PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
-//                System.out.println(Thread.currentThread().getName() + ": sending ack for: " + msg);
+                System.out.println("sending ACK to " + senderId + " :" + msg);
                 pl_ack(senderIp, senderPort, originalSenderId, msgSeqNumber);
                 if(! deliveredSet.contains(msg) && ! deliverQueue.contains(msg)) {
                     deliverQueue.add(msg);
                     deliverQueue_msgContent.add(msgSplit[0]);
-                    System.out.println("msg " + msg + " added to deliver queue");
+//                    System.out.println("msg " + msg + " added to deliver queue");
                 }
             }
         }
