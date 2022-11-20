@@ -69,7 +69,7 @@ public class URBChannel {
     }
 
     private void checkAndDeliverToFiFo(FIFOMessage msg) {
-        System.out.println(urb_ackedMap);
+//        System.out.println(urb_ackedMap);
         if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
             if(! urb_deliveredSet.contains(msg)) {
                 urb_deliveredSet.add(msg);

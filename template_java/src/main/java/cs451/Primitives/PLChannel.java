@@ -1,10 +1,9 @@
 package cs451.Primitives;
 
 import cs451.FIFOMessage;
+import cs451.FullMessage;
 import cs451.Host;
-import cs451.PLMessage;
 
-import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
@@ -15,15 +14,14 @@ public class PLChannel {
     private Host broadcaster;
     private DatagramSocket socket;
     private HashMap<String, HashMap<Integer, Integer>> host2IdMap;
-    private HashSet<PLMessage> deliveredSet = new HashSet<>();
-    private HashSet<PLMessage> ackedSet = new HashSet<>();
-    private volatile Queue<PLMessage> deliverQueue = new LinkedList<>();
-    private Queue<String> deliverQueue_msgContent = new LinkedList<>();
 
-    private Integer CAPACITY = 3000;
-    private volatile LinkedBlockingQueue<DatagramPacket> resendingQueue= new LinkedBlockingQueue<>(CAPACITY);
+    private HashSet<FullMessage> deliveredSet = new HashSet<>();
+    private HashSet<FullMessage> ackedSet = new HashSet<>();
+    private volatile LinkedBlockingQueue<FullMessage> deliverQueue = new LinkedBlockingQueue<>();
+    private Integer CAPACITY = 1500;
+    private volatile LinkedBlockingQueue<SendingQueueInfo> resendingQueue= new LinkedBlockingQueue<>(CAPACITY);
 
-    private volatile LinkedBlockingQueue<PLMessage> resendingQueueMsg = new LinkedBlockingQueue<>(CAPACITY);
+//    private volatile LinkedBlockingQueue<PLMessage> resendingQueueMsg = new LinkedBlockingQueue<>(CAPACITY);
 
     private BEChannel upperChannel;
 
@@ -51,34 +49,41 @@ public class PLChannel {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-//            System.out.println("at the beginning g of send from queue");
-            Iterator<DatagramPacket> packetIterator = resendingQueue.iterator();
-            Iterator<PLMessage> plMessageIterator = resendingQueueMsg.iterator();
+            Iterator<SendingQueueInfo> sendingQueueInfoIterator = resendingQueue.iterator();
 
             int i = 0;
-            while(i < CAPACITY && packetIterator.hasNext() && plMessageIterator.hasNext()) {
+            while(i < CAPACITY && sendingQueueInfoIterator.hasNext()) {
                 i ++;
-//                System.out.println("queue size: " + resendingQueue.size());
-                DatagramPacket currentPacket = packetIterator.next();
-                PLMessage currentPLMessage = plMessageIterator.next();
-                System.out.println("current element:" + currentPLMessage);
+//                System.out.println(resendingQueue);
+                SendingQueueInfo sendingQueueInfo = sendingQueueInfoIterator.next();
+                DatagramPacket currentPacket = creatSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
 
-                if(! ackedSet.contains(currentPLMessage)) {
-//                    System.out.println("re-sending:" + currentPLMessage.getOriginalSenderId() + "#" + currentPLMessage.getSeqNumber());
+                Integer destId = host2IdMap.get(sendingQueueInfo.destIP).get(sendingQueueInfo.destPort);
+                if(! ackedSet.contains(new FullMessage(destId, sendingQueueInfo.fifoMsg))) {
                     try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
                 }
-                else if(ackedSet.contains(currentPLMessage)) {
-                    System.out.println(resendingQueueMsg);
-                    System.out.println("msg " + currentPLMessage.getOriginalSenderId() + "#" + currentPLMessage.getSeqNumber() + " is already acked by " + currentPLMessage.getSenderId());
-                    packetIterator.remove();
-                    plMessageIterator.remove();
+                else {
+                    System.out.println("hi");
+                    sendingQueueInfoIterator.remove();
                 }
             }
         }
     }
 
-    public void pl_send(String destIP, Integer destPort, Integer senderId, FIFOMessage fifoMsg) {
-//        System.out.println("ackedSet: " + ackedSet);
+    private class SendingQueueInfo {
+
+        public String destIP;
+        public Integer destPort;
+        public FIFOMessage fifoMsg;
+
+        public SendingQueueInfo(String destIP, Integer destPort, FIFOMessage fifoMsg) {
+            this.destIP = destIP;
+            this.destPort = destPort;
+            this.fifoMsg = fifoMsg;
+        }
+    }
+
+    private DatagramPacket creatSendingPacket(String destIP, Integer destPort, FIFOMessage fifoMsg) {
         String finalMsg = fifoMsg.getMsgContent() + "#" + fifoMsg.getOriginalSenderId() + "#" + fifoMsg.getSeqNumber();
         byte[] buf = finalMsg.getBytes();
         DatagramPacket msgPacket;
@@ -88,18 +93,18 @@ public class PLChannel {
             System.out.println("The given host name is unknown.");
             throw new RuntimeException(e);
         }
+        return msgPacket;
+    }
+    public void pl_send(String destIP, Integer destPort, Integer senderId, FIFOMessage fifoMsg) {
 
-
-        // create a msg with sender=dest to see if it is acked or not
-        PLMessage msg = new PLMessage(host2IdMap.get(destIP).get(destPort), fifoMsg.getOriginalSenderId(), fifoMsg.getSeqNumber());
-
+        DatagramPacket msgPacket = creatSendingPacket(destIP, destPort, fifoMsg);
         // send it once yourself
         try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
 
+        SendingQueueInfo sendingQueueInfo = new SendingQueueInfo(destIP, destPort, fifoMsg);
         // then add it to resend queue which will check and resend
         try {
-            resendingQueue.put(msgPacket);
-            resendingQueueMsg.put(msg);
+            resendingQueue.put(sendingQueueInfo);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -124,15 +129,10 @@ public class PLChannel {
 
     private void deliverFromQueue() {
         while(true) {
-//            System.out.println(Thread.currentThread().getName()+ ": waiting for deliver queue element");
-            PLMessage msg = deliverQueue.peek();
-            String msgContent = deliverQueue_msgContent.peek();
-            if((msg != null) && (msgContent != null)) {
-                pl_deliver(msg, msgContent);
-                deliverQueue.poll();
-                deliverQueue_msgContent.poll();
-//                System.out.println(Thread.currentThread().getName()+ ": delivered msg: " + msg);
-            }
+            FullMessage msg = null;
+            // block to find msg
+            try {msg = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
+            pl_deliver(msg);
         }
     }
 
@@ -166,32 +166,28 @@ public class PLChannel {
 //            System.out.println(msgSplit[0]);
 
             if(msgSplit[0].equals("A")) {
-                PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
+                FullMessage msg = new FullMessage(senderId, new FIFOMessage(msgSeqNumber, originalSenderId, null));
                 if(! ackedSet.contains(msg)) {
-//                    System.out.println("added " + msg + " to acked set");
                     ackedSet.add(msg);
-//                    while(true);
                 }
             }
             // else if it is a deliver msg, deliver it to the upper channel, and ack it
             else {
-                PLMessage msg = new PLMessage(senderId, originalSenderId, msgSeqNumber);
+                FullMessage msg = new FullMessage(senderId, new FIFOMessage(msgSeqNumber, originalSenderId, msgSplit[0]));
                 System.out.println("sending ACK to " + senderId + " :" + msg);
                 pl_ack(senderIp, senderPort, originalSenderId, msgSeqNumber);
                 if(! deliveredSet.contains(msg) && ! deliverQueue.contains(msg)) {
                     deliverQueue.add(msg);
-                    deliverQueue_msgContent.add(msgSplit[0]);
-//                    System.out.println("msg " + msg + " added to deliver queue");
                 }
             }
         }
     }
-    private void pl_deliver(PLMessage msg, String msgContent) {
+    private void pl_deliver(FullMessage fullMessage) {
 //        System.out.println("delivered set: " + deliveredSet);
-        if(!deliveredSet.contains(msg)) {
+        if(! deliveredSet.contains(fullMessage)) {
             // Deliver the message
-            upperChannel.be_deliver(msg.getSenderId(), new FIFOMessage(msg.getSeqNumber(), msg.getOriginalSenderId(), msgContent));
-            deliveredSet.add(msg);
+            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
+            deliveredSet.add(fullMessage);
         }
     }
 }

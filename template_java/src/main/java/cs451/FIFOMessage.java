@@ -36,4 +36,8 @@ public class FIFOMessage extends Message {
     public int hashCode() {
         return Objects.hash(seqNumber, originalSenderId);
     }
+
+    public void wipe() {
+        this.msgContent = null;
+    }
 }

@@ -64,6 +64,7 @@ public class FIFOChannel {
                         iterator.remove();
                         //trigger < frb, Deliver | s, m >;
                         this.broadcaster.getApplicationLayer().log("d", s, pendingMsg.getSeqNumber());
+                        pendingMsg.wipe();
                     }
                 }
             }
