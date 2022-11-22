@@ -113,7 +113,7 @@ public class Host {
     public void sendNextBatch() {
         // do batching
         for(int b = 0; b < capacity; b++) {
-            if(intervalBegin >= numOfMsg) {
+            if(intervalBegin > numOfMsg) {
                 return;
             }
             String msg = getNextMsg(intervalBegin, numOfMsg);

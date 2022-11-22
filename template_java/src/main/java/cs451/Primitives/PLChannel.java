@@ -19,8 +19,6 @@ public class PLChannel {
     private HashSet<FullMessage> ackedSet = new HashSet<>();
     private volatile LinkedBlockingQueue<FullMessage> deliverQueue = new LinkedBlockingQueue<>();
 
-//    private Integer BATCH_SIZE = 8;
-//    private Integer CAPACITY = BATCH_SIZE * 64 + BATCH_SIZE;
     private volatile LinkedBlockingQueue<SendingQueueInfo> resendingQueue= new LinkedBlockingQueue<>();
 
     private BEChannel upperChannel;
@@ -53,24 +51,18 @@ public class PLChannel {
 //                throw new RuntimeException(e);
 //            }
             Iterator<SendingQueueInfo> sendingQueueInfoIterator = resendingQueue.iterator();
-            System.out.println("before resendingQueue.size()" + resendingQueue.size());
-            int cnt = 0;
             while(sendingQueueInfoIterator.hasNext()) {
                 SendingQueueInfo sendingQueueInfo = sendingQueueInfoIterator.next();
-                DatagramPacket currentPacket = creatSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
+                DatagramPacket currentPacket = createSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
 
                 Integer destId = host2IdMap.get(sendingQueueInfo.destIP).get(sendingQueueInfo.destPort);
                 if(! ackedSet.contains(new FullMessage(destId, sendingQueueInfo.fifoMsg))) {
                     try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
                 }
                 else {
-                    cnt++;
                     sendingQueueInfoIterator.remove();
                 }
             }
-            System.out.println("after resendingQueue.size()" + resendingQueue.size());
-            System.out.println("removed " + cnt + " elements");
-            System.out.println("resendingQueue.size(): " + resendingQueue.size());
         }
     }
 
@@ -87,7 +79,7 @@ public class PLChannel {
         }
     }
 
-    private DatagramPacket creatSendingPacket(String destIP, Integer destPort, FIFOMessage fifoMsg) {
+    private DatagramPacket createSendingPacket(String destIP, Integer destPort, FIFOMessage fifoMsg) {
         String finalMsg = fifoMsg.getMsgContent() + "#" + fifoMsg.getOriginalSenderId() + "#" + fifoMsg.getSeqNumber();
         byte[] buf = finalMsg.getBytes();
         DatagramPacket msgPacket;
@@ -169,9 +161,8 @@ public class PLChannel {
 
             System.out.println("rcvd from " + senderId + " : " + rcvdMsg);
             System.out.println(System.currentTimeMillis());
-            // if it is an ack message
-//            System.out.println(msgSplit[0]);
 
+            // if it is an ack message
             if(msgSplit[0].equals("A")) {
                 FullMessage msg = new FullMessage(senderId, new FIFOMessage(msgSeqNumber, originalSenderId, null));
                 if(! ackedSet.contains(msg)) {
@@ -189,12 +180,4 @@ public class PLChannel {
             }
         }
     }
-//    private void pl_deliver(FullMessage fullMessage) {
-////        System.out.println("delivered set: " + deliveredSet);
-//        if(! deliveredSet.contains(fullMessage)) {
-//            // Deliver the message
-//            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
-//            deliveredSet.add(fullMessage);
-//        }
-//    }
 }
