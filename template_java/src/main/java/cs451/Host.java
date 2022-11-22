@@ -12,6 +12,12 @@ public class Host {
 
     Application applicationLayer;
     List<Host> hostsList;
+
+    public void setNumOfMsg(int numOfMsg) {
+        this.numOfMsg = numOfMsg;
+    }
+
+    int numOfMsg;
     public void setApplicationLayer(Application applicationLayer) {
         this.applicationLayer = applicationLayer;
     }
@@ -21,6 +27,7 @@ public class Host {
     }
     public void setHosts(List<Host> hosts) {
         this.hostsList = hosts;
+        fifo_channel = new FIFOChannel(hosts, this);
     }
 
     class Logs {
@@ -82,13 +89,39 @@ public class Host {
         return port;
     }
 
-    public void start(int numOfMsg) {
-        FIFOChannel fifo_channel = new FIFOChannel(this.hostsList, this);
-        // do batching
-        for(int i = 1; i <= numOfMsg; i++) {
-            System.out.println("Sending msg " + i);
-            fifo_channel.fifo_broadcast(Integer.toString(i));
+    private int current_batch = 0;
+
+    private String getNextMsg(int intervalBegin, int numOfMsg) {
+        String msg = "";
+        for(int j = intervalBegin; j <= min(numOfMsg, intervalBegin + 8); j++) {
+            applicationLayer.log("b", null, j);
+            msg += Integer.toString(j);
+            if(j != min(numOfMsg, intervalBegin + 8)) {
+                msg += ",";
+            }
         }
-//        fifo_channel.fifo_broadcast(Integer.toString(85));
+        this.intervalBegin += 9;
+        return msg;
+    }
+
+    private int capacity = 1;
+
+    private int batchIndex = 0;
+
+    private FIFOChannel fifo_channel;
+    private int intervalBegin = 1;
+    public void sendNextBatch() {
+        // do batching
+        for(int b = 0; b < capacity; b++) {
+            if(intervalBegin >= numOfMsg) {
+                return;
+            }
+            String msg = getNextMsg(intervalBegin, numOfMsg);
+            System.out.println("sending msg " + msg);
+            this.fifo_channel.fifo_broadcast(msg);
+        }
+    }
+    public void start() {
+        this.sendNextBatch();
     }
 }

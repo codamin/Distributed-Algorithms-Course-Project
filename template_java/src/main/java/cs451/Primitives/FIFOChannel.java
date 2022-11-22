@@ -33,13 +33,13 @@ public class FIFOChannel {
     public void fifo_broadcast(String msg) {
 //        System.out.println("fifo broadcast...");
         lsn += 1;
-        this.broadcaster.getApplicationLayer().log("b", null, lsn);
+//        this.broadcaster.getApplicationLayer().log("b", null, lsn);
         urbChannel.urb_broadcast(this.broadcaster.getId(), new FIFOMessage(lsn, broadcaster.getId(), msg));
 //        System.out.println("fifo finished........");
     }
 
     public void fifo_deliver(FIFOMessage msg) {
-//        System.out.println("fifo deliver...");
+        broadcaster.sendNextBatch();
         //Add current msg to pending list --> pending := pending ∪ {(s, m, sn)};
         Integer s = msg.getOriginalSenderId();
         this.fifo_pendingList.add(msg);
@@ -63,8 +63,13 @@ public class FIFOChannel {
                         //pending := pending \ {(s, m, sn)};
                         iterator.remove();
                         //trigger < frb, Deliver | s, m >;
-                        this.broadcaster.getApplicationLayer().log("d", s, pendingMsg.getSeqNumber());
-                        pendingMsg.wipe();
+                        String[] msgsplit = pendingMsg.getMsgContent().split(",");
+                        for(int i = 0; i < msgsplit.length; i++) {
+                            this.broadcaster.getApplicationLayer().log("d", s, Integer.parseInt(msgsplit[i]));
+                        }
+                        //////////////////
+//                        pendingMsg.wipe();
+                        //////////////////
                     }
                 }
             }

@@ -62,6 +62,7 @@ public class URBChannel {
             urb_pendingSet.add(msg);
              //relay message
 //            beChannel.be_broadcast(msg, new HashSet<>() {{add(senderId); add(broadcaster.getId());}});
+            System.out.println("relaying msg:"  + msg);
             beChannel.be_broadcast(msg);
 //           // deliver if can deliver
         }
@@ -70,6 +71,7 @@ public class URBChannel {
 
     private void checkAndDeliverToFiFo(FIFOMessage msg) {
 //        System.out.println(urb_ackedMap);
+//        if(urb_ackedMap.get(msg).size() > 0) {
         if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
             if(! urb_deliveredSet.contains(msg)) {
                 urb_deliveredSet.add(msg);

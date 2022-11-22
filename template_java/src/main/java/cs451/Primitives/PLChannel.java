@@ -18,12 +18,14 @@ public class PLChannel {
     private HashSet<FullMessage> deliveredSet = new HashSet<>();
     private HashSet<FullMessage> ackedSet = new HashSet<>();
     private volatile LinkedBlockingQueue<FullMessage> deliverQueue = new LinkedBlockingQueue<>();
-    private Integer CAPACITY = 1500;
-    private volatile LinkedBlockingQueue<SendingQueueInfo> resendingQueue= new LinkedBlockingQueue<>(CAPACITY);
 
-//    private volatile LinkedBlockingQueue<PLMessage> resendingQueueMsg = new LinkedBlockingQueue<>(CAPACITY);
+//    private Integer BATCH_SIZE = 8;
+//    private Integer CAPACITY = BATCH_SIZE * 64 + BATCH_SIZE;
+    private volatile LinkedBlockingQueue<SendingQueueInfo> resendingQueue= new LinkedBlockingQueue<>();
 
     private BEChannel upperChannel;
+
+    private Boolean busy = false;
 
     public PLChannel(BEChannel beChannel, Host broadcaster, HashMap<String, HashMap<Integer, Integer>> host2IdMap) {
         this.broadcaster = broadcaster;
@@ -44,17 +46,16 @@ public class PLChannel {
 
     private void sendFromQueue() {
         while(true) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+//            try {
+//                Thread.sleep(300);
+//                System.out.println("queue size: " + resendingQueue.size());
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
             Iterator<SendingQueueInfo> sendingQueueInfoIterator = resendingQueue.iterator();
-
-            int i = 0;
-            while(i < CAPACITY && sendingQueueInfoIterator.hasNext()) {
-                i ++;
-//                System.out.println(resendingQueue);
+            System.out.println("before resendingQueue.size()" + resendingQueue.size());
+            int cnt = 0;
+            while(sendingQueueInfoIterator.hasNext()) {
                 SendingQueueInfo sendingQueueInfo = sendingQueueInfoIterator.next();
                 DatagramPacket currentPacket = creatSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
 
@@ -63,10 +64,13 @@ public class PLChannel {
                     try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
                 }
                 else {
-                    System.out.println("hi");
+                    cnt++;
                     sendingQueueInfoIterator.remove();
                 }
             }
+            System.out.println("after resendingQueue.size()" + resendingQueue.size());
+            System.out.println("removed " + cnt + " elements");
+            System.out.println("resendingQueue.size(): " + resendingQueue.size());
         }
     }
 
@@ -97,9 +101,9 @@ public class PLChannel {
     }
     public void pl_send(String destIP, Integer destPort, Integer senderId, FIFOMessage fifoMsg) {
 
-        DatagramPacket msgPacket = creatSendingPacket(destIP, destPort, fifoMsg);
+//        DatagramPacket msgPacket = creatSendingPacket(destIP, destPort, fifoMsg);
         // send it once yourself
-        try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
+//        try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
 
         SendingQueueInfo sendingQueueInfo = new SendingQueueInfo(destIP, destPort, fifoMsg);
         // then add it to resend queue which will check and resend
@@ -129,16 +133,19 @@ public class PLChannel {
 
     private void deliverFromQueue() {
         while(true) {
-            FullMessage msg = null;
+            FullMessage fullMessage = null;
             // block to find msg
-            try {msg = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
-            pl_deliver(msg);
+            try {fullMessage = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
+//            pl_deliver(msg);
+            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
+            deliveredSet.add(fullMessage);
         }
     }
 
     public void listen() {
         while(true) {
-            byte[] rcvBuf = new byte[256];
+            byte[] rcvBuf = new byte[128];
+            System.out.println(rcvBuf.length);
             DatagramPacket rcvPacket = new DatagramPacket(rcvBuf, rcvBuf.length);
 
             // block to receive
@@ -161,7 +168,7 @@ public class PLChannel {
             Integer msgSeqNumber = Integer.parseInt(msgSplit[2]);
 
             System.out.println("rcvd from " + senderId + " : " + rcvdMsg);
-
+            System.out.println(System.currentTimeMillis());
             // if it is an ack message
 //            System.out.println(msgSplit[0]);
 
@@ -174,7 +181,7 @@ public class PLChannel {
             // else if it is a deliver msg, deliver it to the upper channel, and ack it
             else {
                 FullMessage msg = new FullMessage(senderId, new FIFOMessage(msgSeqNumber, originalSenderId, msgSplit[0]));
-                System.out.println("sending ACK to " + senderId + " :" + msg);
+//                System.out.println("sending ACK to " + senderId + " :" + msg);
                 pl_ack(senderIp, senderPort, originalSenderId, msgSeqNumber);
                 if(! deliveredSet.contains(msg) && ! deliverQueue.contains(msg)) {
                     deliverQueue.add(msg);
@@ -182,12 +189,12 @@ public class PLChannel {
             }
         }
     }
-    private void pl_deliver(FullMessage fullMessage) {
-//        System.out.println("delivered set: " + deliveredSet);
-        if(! deliveredSet.contains(fullMessage)) {
-            // Deliver the message
-            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
-            deliveredSet.add(fullMessage);
-        }
-    }
+//    private void pl_deliver(FullMessage fullMessage) {
+////        System.out.println("delivered set: " + deliveredSet);
+//        if(! deliveredSet.contains(fullMessage)) {
+//            // Deliver the message
+//            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
+//            deliveredSet.add(fullMessage);
+//        }
+//    }
 }

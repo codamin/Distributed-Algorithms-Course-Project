@@ -98,6 +98,7 @@ public class Main {
         // Set Hosts' output paths
         for(Host host_: parser.hosts()) {
             host_.setApplicationLayer(applicationLayer);
+            host_.setNumOfMsg(numOfMsg);
         }
 
         // find the host object corresponding to the current process
@@ -107,7 +108,7 @@ public class Main {
         }
 
         thisHost.setHosts(parser.hosts());
-        thisHost.start(numOfMsg);
+        thisHost.start();
 
          // After a process finishes broadcasting,
          // it waits forever for the delivery of messages.
