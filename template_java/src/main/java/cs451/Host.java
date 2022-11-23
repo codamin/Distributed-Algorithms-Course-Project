@@ -27,7 +27,6 @@ public class Host {
     }
     public void setHosts(List<Host> hosts) {
         this.hostsList = hosts;
-        fifo_channel = new FIFOChannel(hosts, this);
     }
 
     class Logs {
@@ -109,19 +108,59 @@ public class Host {
     private int batchIndex = 0;
 
     private FIFOChannel fifo_channel;
-    private int intervalBegin = 1;
+    private int intervalBegin;
     public void sendNextBatch() {
-        // do batching
-        for(int b = 0; b < capacity; b++) {
-            if(intervalBegin > numOfMsg) {
-                return;
+//        String msg = "";
+//
+//        int j = intervalBegin;
+//        while(j <= min(numOfMsg, intervalBegin + 7)) {
+//            applicationLayer.log("b", null, j);
+//            msg += Integer.toString(j);
+//            if(j != min(numOfMsg, intervalBegin + 7)) {
+//                msg += ",";
+//            }
+//            j++;
+//        }
+        for(int i = 0; i < 4; i++) {
+            if(intervalBegin > numOfMsg)
+                break;
+            String msg = "";
+            for(int j = 0; j < 8; j++) {
+                if(intervalBegin > numOfMsg)
+                    break;
+                applicationLayer.log("b", null, intervalBegin);
+                msg += Integer.toString(intervalBegin);
+                msg += ',';
+                this.intervalBegin += 1;
             }
-            String msg = getNextMsg(intervalBegin, numOfMsg);
             System.out.println("sending msg " + msg);
             this.fifo_channel.fifo_broadcast(msg);
         }
+
+        // do batching
+//        for(int b = 0; b < capacity; b++) {
+//            if(intervalBegin > numOfMsg) {
+//                return;
+//            }
+//            String msg = getNextMsg(intervalBegin, numOfMsg);
+
+//        String msg = "";
+//        for(int j = intervalBegin; j <= min(numOfMsg, intervalBegin + 8); j++) {
+//            applicationLayer.log("b", null, j);
+//            msg += Integer.toString(j);
+//            if(j != min(numOfMsg, intervalBegin + 8)) {
+//                msg += ",";
+//            }
+//            this.intervalBegin += 1;
+//        }
+//        System.out.println("sending msg " + msg);
+//        this.fifo_channel.fifo_broadcast(msg);
+//        }
     }
     public void start() {
+        intervalBegin = 1;
+        fifo_channel = new FIFOChannel(this.hostsList, this);
+
         this.sendNextBatch();
     }
 }

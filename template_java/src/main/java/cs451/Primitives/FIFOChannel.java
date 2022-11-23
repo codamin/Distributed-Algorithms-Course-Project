@@ -26,8 +26,8 @@ public class FIFOChannel {
         for(Host dest_host : hostsList) {
             next.put(dest_host.getId(), 1);
         }
-        this.urbChannel = new URBChannel(this.hostsList, this, broadcaster);
         this.broadcaster = broadcaster;
+        this.urbChannel = new URBChannel(this.hostsList, this, broadcaster);
     }
 
     public void fifo_broadcast(String msg) {
@@ -39,7 +39,7 @@ public class FIFOChannel {
     }
 
     public void fifo_deliver(FIFOMessage msg) {
-        broadcaster.sendNextBatch();
+//        broadcaster.sendNextBatch();
         //Add current msg to pending list --> pending := pending ∪ {(s, m, sn)};
         Integer s = msg.getOriginalSenderId();
         this.fifo_pendingList.add(msg);
@@ -63,6 +63,7 @@ public class FIFOChannel {
                         //pending := pending \ {(s, m, sn)};
                         iterator.remove();
                         //trigger < frb, Deliver | s, m >;
+                        System.out.println("content: " + pendingMsg.getMsgContent());
                         String[] msgsplit = pendingMsg.getMsgContent().split(",");
                         for(int i = 0; i < msgsplit.length; i++) {
                             this.broadcaster.getApplicationLayer().log("d", s, Integer.parseInt(msgsplit[i]));

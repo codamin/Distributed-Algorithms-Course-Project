@@ -18,8 +18,6 @@ public class BEChannel {
     public BEChannel(List<Host> hostsList, URBChannel urbChannel, Host broadcaster) {
         this.hostsList = hostsList;
         this.broadcaster = broadcaster;
-
-
         // creating a host2IdMap to send to pl channel. The pl channel will need it to know the id of the sender of a msg
         // so that it can create dictionaries easier. Anyways, even if pl channel did not do this mapping, the be channel
         // eventually would need to do it.
@@ -35,8 +33,12 @@ public class BEChannel {
         }
 
         ////////////////////////
-        this.plChannel = new PLChannel(this, broadcaster, host2IdMap);
         this.upperChannel = urbChannel;
+        this.plChannel = new PLChannel(this, broadcaster, host2IdMap);
+    }
+
+    public void startThreads() {
+        this.plChannel.startThreads();
     }
 
     public void be_broadcast(FIFOMessage fifoMsg) {

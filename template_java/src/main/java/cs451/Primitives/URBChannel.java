@@ -21,9 +21,10 @@ public class URBChannel {
 
     public URBChannel(List<Host> hostsList, FIFOChannel fifoChannel, Host broadcaster) {
         this.hostsList = hostsList;
-        this.beChannel = new BEChannel(this.hostsList, this, broadcaster);
         this.upperChannel = fifoChannel;
         this.broadcaster = broadcaster;
+        this.beChannel = new BEChannel(this.hostsList, this, broadcaster);
+        this.beChannel.startThreads();
     }
 
     public void urb_broadcast(Integer broadcasterId, FIFOMessage msg) {
@@ -34,13 +35,7 @@ public class URBChannel {
     }
 
     public void urb_deliver(Integer senderId, FIFOMessage msg) {
-
         //************ ack[m] := ack[m] ∪ {p}; **************
-        ///////////////////////////////////////////
-        System.out.println("in urb delivery:");
-//        System.out.println("from sender: " + senderId + " received msg:");
-//        System.out.println(msg);
-
         if(urb_ackedMap.get(msg) != null) {
             urb_ackedMap.get(msg).add(senderId);
             urb_ackedMap.get(msg).add(broadcaster.getId());
@@ -49,29 +44,25 @@ public class URBChannel {
             urb_ackedMap.put(msg, new HashSet<>(){{add(senderId); add(broadcaster.getId());
             }});
         }
-
-//        System.out.println("urb_ackedMap:");
-//        System.out.println(urb_ackedMap);
-
-        ///////////////////////////////////////////
-        //if (s, m) is not pending then
-        // pending := pending ∪ {(s, m)};
-        // trigger < beb, Broadcast | [DATA, s, m] >;
-        ///////////////////////////////////////////
         if(! urb_pendingSet.contains(msg)) {
             urb_pendingSet.add(msg);
-             //relay message
-//            beChannel.be_broadcast(msg, new HashSet<>() {{add(senderId); add(broadcaster.getId());}});
-            System.out.println("relaying msg:"  + msg);
             beChannel.be_broadcast(msg);
-//           // deliver if can deliver
         }
-        checkAndDeliverToFiFo(msg);
+        checkAndDeliverToFiFo(senderId, msg);
     }
 
-    private void checkAndDeliverToFiFo(FIFOMessage msg) {
+    private void checkAndDeliverToFiFo(Integer senderId, FIFOMessage msg) {
         if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
             if(! urb_deliveredSet.contains(msg)) {
+                System.out.println("urb delibering msg: " + msg);
+                if(msg.getOriginalSenderId() == this.broadcaster.getId()) {
+                    System.out.println("requesting next batch");
+                    broadcaster.sendNextBatch();
+                }
+//                else if(senderId == this.broadcaster.getId()) {
+//                    System.out.println("requesting next batch");
+//                    broadcaster.sendNextBatch();
+//                }
                 urb_deliveredSet.add(msg);
                 upperChannel.fifo_deliver(msg);
             }

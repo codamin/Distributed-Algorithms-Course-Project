@@ -35,23 +35,22 @@ public class PLChannel {
         }
 
         this.upperChannel = beChannel;
-
-        // start listening for acks and msgs
-        new Thread(() -> sendFromQueue(), "Send-Queue").start();
-        new Thread(() -> listen(), "Listen").start();
-        new Thread(() -> deliverFromQueue(), "Deliver-Queue").start();
     }
 
     private void sendFromQueue() {
         while(true) {
+//            System.out.println(System.currentTimeMillis() + " sending queue size: " + deliverQueue.size());
 //            try {
 //                Thread.sleep(300);
 //                System.out.println("queue size: " + resendingQueue.size());
 //            } catch (InterruptedException e) {
 //                throw new RuntimeException(e);
 //            }
+//            System.out.println(resendingQueue.size());
+//            System.out.println("start of iteration");
             Iterator<SendingQueueInfo> sendingQueueInfoIterator = resendingQueue.iterator();
             while(sendingQueueInfoIterator.hasNext()) {
+//                System.out.println("iterating...." + "size of sending queue is: " + resendingQueue.size());
                 SendingQueueInfo sendingQueueInfo = sendingQueueInfoIterator.next();
                 DatagramPacket currentPacket = createSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
 
@@ -64,6 +63,13 @@ public class PLChannel {
                 }
             }
         }
+    }
+
+    public void startThreads() {
+        // start listening for acks and msgs
+        new Thread(() -> sendFromQueue(), "Send-Queue").start();
+        new Thread(() -> listen(), "Listen").start();
+        new Thread(() -> deliverFromQueue(), "Deliver-Queue").start();
     }
 
     private class SendingQueueInfo {
@@ -125,19 +131,20 @@ public class PLChannel {
 
     private void deliverFromQueue() {
         while(true) {
-            FullMessage fullMessage = null;
+//            System.out.println("starting delivery...");
+//            System.out.println(System.currentTimeMillis() + " deliver queue size: " + deliverQueue.size());
+            FullMessage fullMessage;
             // block to find msg
             try {fullMessage = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
-//            pl_deliver(msg);
-            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
             deliveredSet.add(fullMessage);
+            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
         }
     }
 
     public void listen() {
         while(true) {
             byte[] rcvBuf = new byte[128];
-            System.out.println(rcvBuf.length);
+//            System.out.println(rcvBuf.length);
             DatagramPacket rcvPacket = new DatagramPacket(rcvBuf, rcvBuf.length);
 
             // block to receive
@@ -159,8 +166,8 @@ public class PLChannel {
             Integer originalSenderId = Integer.parseInt(msgSplit[1]);
             Integer msgSeqNumber = Integer.parseInt(msgSplit[2]);
 
-            System.out.println("rcvd from " + senderId + " : " + rcvdMsg);
-            System.out.println(System.currentTimeMillis());
+//            System.out.println("rcvd from " + senderId + " : " + rcvdMsg);
+//            System.out.println(System.currentTimeMillis());
 
             // if it is an ack message
             if(msgSplit[0].equals("A")) {
@@ -175,7 +182,11 @@ public class PLChannel {
 //                System.out.println("sending ACK to " + senderId + " :" + msg);
                 pl_ack(senderIp, senderPort, originalSenderId, msgSeqNumber);
                 if(! deliveredSet.contains(msg) && ! deliverQueue.contains(msg)) {
-                    deliverQueue.add(msg);
+                    try {
+                        deliverQueue.put(msg);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
