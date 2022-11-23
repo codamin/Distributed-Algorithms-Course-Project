@@ -38,11 +38,12 @@ public class URBChannel {
         //************ ack[m] := ack[m] ∪ {p}; **************
         if(urb_ackedMap.get(msg) != null) {
             urb_ackedMap.get(msg).add(senderId);
-            urb_ackedMap.get(msg).add(broadcaster.getId());
+//            urb_ackedMap.get(msg).add(broadcaster.getId());
         }
         else {
-            urb_ackedMap.put(msg, new HashSet<>(){{add(senderId); add(broadcaster.getId());
-            }});
+//            urb_ackedMap.put(msg, new HashSet<>(){{add(senderId); add(broadcaster.getId());
+//            }});
+            urb_ackedMap.put(msg, new HashSet<>(){{add(senderId);}});
         }
         if(! urb_pendingSet.contains(msg)) {
             urb_pendingSet.add(msg);
@@ -54,7 +55,8 @@ public class URBChannel {
     private void checkAndDeliverToFiFo(Integer senderId, FIFOMessage msg) {
         if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
             if(! urb_deliveredSet.contains(msg)) {
-                System.out.println("urb delibering msg: " + msg);
+                System.out.println("urb delivering msg: " + msg);
+
                 if(msg.getOriginalSenderId() == this.broadcaster.getId()) {
                     System.out.println("requesting next batch");
                     broadcaster.sendNextBatch();

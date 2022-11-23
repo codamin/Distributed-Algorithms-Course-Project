@@ -39,29 +39,38 @@ public class PLChannel {
 
     private void sendFromQueue() {
         while(true) {
-//            System.out.println(System.currentTimeMillis() + " sending queue size: " + deliverQueue.size());
 //            try {
-//                Thread.sleep(300);
-//                System.out.println("queue size: " + resendingQueue.size());
+//                Thread.sleep(100);
 //            } catch (InterruptedException e) {
 //                throw new RuntimeException(e);
 //            }
-//            System.out.println(resendingQueue.size());
-//            System.out.println("start of iteration");
-            Iterator<SendingQueueInfo> sendingQueueInfoIterator = resendingQueue.iterator();
-            while(sendingQueueInfoIterator.hasNext()) {
-//                System.out.println("iterating...." + "size of sending queue is: " + resendingQueue.size());
-                SendingQueueInfo sendingQueueInfo = sendingQueueInfoIterator.next();
-                DatagramPacket currentPacket = createSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
+            SendingQueueInfo sendingQueueInfo = null;
+            try {sendingQueueInfo = resendingQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
 
-                Integer destId = host2IdMap.get(sendingQueueInfo.destIP).get(sendingQueueInfo.destPort);
-                if(! ackedSet.contains(new FullMessage(destId, sendingQueueInfo.fifoMsg))) {
-                    try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
-                }
-                else {
-                    sendingQueueInfoIterator.remove();
-                }
+            DatagramPacket currentPacket = createSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
+            Integer destId = host2IdMap.get(sendingQueueInfo.destIP).get(sendingQueueInfo.destPort);
+
+            if(! ackedSet.contains(new FullMessage(destId, sendingQueueInfo.fifoMsg))) {
+//                System.out.println("not acked --> sending");
+                try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
+                try {resendingQueue.put(sendingQueueInfo);} catch (InterruptedException e) {throw new RuntimeException(e);}
             }
+//            System.out.println("resendingQueue.size=" + resendingQueue.size());
+//            Iterator<SendingQueueInfo> sendingQueueInfoIterator = resendingQueue.iterator();
+//            while(sendingQueueInfoIterator.hasNext()) {
+////                System.out.println("iterating...." + "size of sending queue is: " + resendingQueue.size());
+//                SendingQueueInfo sendingQueueInfo = sendingQueueInfoIterator.next();
+//                DatagramPacket currentPacket = createSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
+//
+//                Integer destId = host2IdMap.get(sendingQueueInfo.destIP).get(sendingQueueInfo.destPort);
+//                if(! ackedSet.contains(new FullMessage(destId, sendingQueueInfo.fifoMsg))) {
+//                    try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
+////                    System.out.printf("sent msg" + sendingQueueInfo.fifoMsg);
+//                }
+//                else {
+//                    sendingQueueInfoIterator.remove();
+//                }
+//            }
         }
     }
 
@@ -159,6 +168,8 @@ public class PLChannel {
             String rcvdMsg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
 
             int senderId = host2IdMap.get(senderIp).get(senderPort);
+
+//            System.out.println("rcvd msg: " + rcvdMsg + " from: " + senderId);
 
             String[] msgSplit = rcvdMsg.split("#");
 
