@@ -8,13 +8,8 @@ import java.util.*;
 public class FIFOChannel {
 
     private Host broadcaster;
-    private String SEQ_DELIM = "#";
     private List<Host> hostsList;
-
-    //Map Process --> Array of pending msgs
-//    private ArrayList<Message> fifo_pendingList = new ArrayList<>();
-    private HashSet[] fifo_pendingPerSender = new HashSet[128];
-//    private HashMap<Integer, Integer> next = new HashMap<>();
+    private HashSet[] fifo_pendingPerSender;
     private int[] next;
     Integer lsn;
     URBChannel urbChannel;
@@ -33,7 +28,7 @@ public class FIFOChannel {
 
     public void fifo_broadcast() {
         lsn += 1;
-        urbChannel.urb_broadcast(this.broadcaster.getId(), new Message(lsn, broadcaster.getId()));
+        urbChannel.urb_broadcast(new Message(-1, broadcaster.getId(), lsn));
     }
 
     public void fifo_deliver(Message msg) {
@@ -57,32 +52,5 @@ public class FIFOChannel {
                 this.fifo_pendingPerSender[msg.getOriginalSenderId()].add(msg.getSeqNumber());
             }
         }
-
-//        this.fifo_pendingList.add(msg);
-        //Deliver previous messages
-//        boolean IsPrevRemaining = true;
-//        while(IsPrevRemaining) {
-//            IsPrevRemaining = false;
-
-            //loop over messages
-//            Iterator<Message> iterator = this.fifo_pendingList.iterator();
-//            while(iterator.hasNext()) {
-//                Message pendingMsg = iterator.next();
-//
-//                if(s == pendingMsg.getOriginalSenderId()) {
-//                    if(pendingMsg.getSeqNumber() == this.next[s]) {
-//                        IsPrevRemaining = true;
-//                        this.next[s] = this.next[s] + 1;
-//                        iterator.remove();
-//                        System.out.println("content: " + pendingMsg.getSeqNumber());
-//                        broadcaster.deliver(pendingMsg.getSeqNumber(), msg.getOriginalSenderId());
-//                        //////////////////
-////                        pendingMsg.wipe();
-//                        //////////////////
-//                    }
-//                }
-//            }
-
-//        }
     }
 }

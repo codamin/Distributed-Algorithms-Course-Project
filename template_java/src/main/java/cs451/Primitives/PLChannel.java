@@ -1,6 +1,5 @@
 package cs451.Primitives;
 
-import cs451.FullMessage;
 import cs451.Host;
 import cs451.Message;
 
@@ -16,7 +15,7 @@ public class PLChannel {
     private HashMap<String, HashMap<Integer, Integer>> host2IdMap;
     private boolean[][][] delivered3d;
     private boolean[][][] acked3d;
-    private volatile LinkedBlockingQueue<FullMessage> deliverQueue = new LinkedBlockingQueue<>();
+    private volatile LinkedBlockingQueue<Message> deliverQueue = new LinkedBlockingQueue<>();
 
     private volatile LinkedBlockingQueue<SendingQueueInfo> resendingQueue= new LinkedBlockingQueue<>();
 
@@ -41,21 +40,15 @@ public class PLChannel {
 
     private void sendFromQueue() {
         while(true) {
-//            try {
-//                Thread.sleep(100);
-//            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
             SendingQueueInfo sendingQueueInfo = null;
             try {sendingQueueInfo = resendingQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
 
             DatagramPacket currentPacket = createSendingPacket(sendingQueueInfo.destIP, sendingQueueInfo.destPort, sendingQueueInfo.fifoMsg);
             Integer destId = host2IdMap.get(sendingQueueInfo.destIP).get(sendingQueueInfo.destPort);
 
-//            if(! ackedSet.contains(new FullMessage(destId, sendingQueueInfo.fifoMsg))) {
-            if(acked3d[destId][sendingQueueInfo.fifoMsg.getOriginalSenderId()][sendingQueueInfo.fifoMsg.getSeqNumber()] == false) {
-//                System.out.println("not acked --> sending");
+            if(!acked3d[destId][sendingQueueInfo.fifoMsg.getOriginalSenderId()][sendingQueueInfo.fifoMsg.getSeqNumber()]) {
                 try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
+//                System.out.println("send msg: " + sendingQueueInfo.fifoMsg);
                 try {resendingQueue.put(sendingQueueInfo);} catch (InterruptedException e) {throw new RuntimeException(e);}
             }
         }
@@ -93,12 +86,8 @@ public class PLChannel {
         }
         return msgPacket;
     }
-    public void pl_send(String destIP, Integer destPort, Integer senderId, Message fifoMsg) {
-
-//        DatagramPacket msgPacket = creatSendingPacket(destIP, destPort, fifoMsg);
+    public void pl_send(String destIP, Integer destPort, Message fifoMsg) {
         // send it once yourself
-//        try {this.socket.send(msgPacket);} catch (IOException e) {throw new RuntimeException(e);}
-
         SendingQueueInfo sendingQueueInfo = new SendingQueueInfo(destIP, destPort, fifoMsg);
         // then add it to resend queue which will check and resend
         try {
@@ -110,7 +99,6 @@ public class PLChannel {
 
     private void pl_ack(String destIP, Integer destPort, Integer originalSenderId, Integer msgSeqNumber) {
         String ackMsg = originalSenderId + "#" + msgSeqNumber + "#" + "A";
-//        System.out.println("sending ack: " + ackMsg);
         byte[] buf = ackMsg.getBytes();
         DatagramPacket sendingPacket;
         try {
@@ -127,21 +115,17 @@ public class PLChannel {
 
     private void deliverFromQueue() {
         while(true) {
-//            System.out.println("starting delivery...");
-//            System.out.println(System.currentTimeMillis() + " deliver queue size: " + deliverQueue.size());
-            FullMessage fullMessage;
+            Message msg;
             // block to find msg
-            try {fullMessage = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
-//            deliveredSet.add(fullMessage);
-            delivered3d[fullMessage.senderId][fullMessage.fifoMessage.getOriginalSenderId()][fullMessage.fifoMessage.getSeqNumber()] = true;
-            upperChannel.be_deliver(fullMessage.senderId, fullMessage.fifoMessage);
+            try {msg = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
+            delivered3d[msg.getSenderId()][msg.getOriginalSenderId()][msg.getSeqNumber()] = true;
+            upperChannel.be_deliver(msg);
         }
     }
 
     public void listen() {
         while(true) {
             byte[] rcvBuf = new byte[128];
-//            System.out.println(rcvBuf.length);
             DatagramPacket rcvPacket = new DatagramPacket(rcvBuf, rcvBuf.length);
 
             // block to receive
@@ -154,10 +138,9 @@ public class PLChannel {
             String senderIp = rcvPacket.getAddress().getHostAddress();
             int senderPort = rcvPacket.getPort();
             String rcvdMsg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
-
             int senderId = host2IdMap.get(senderIp).get(senderPort);
 
-//            System.out.println("rcvd msg: " + rcvdMsg + " from: " + senderId);
+//            System.out.println("rcvd msg:" + rcvdMsg + " from:" + senderId);
 
             String[] msgSplit = rcvdMsg.split("#");
 
@@ -165,24 +148,15 @@ public class PLChannel {
             Integer originalSenderId = Integer.parseInt(msgSplit[0]);
             Integer msgSeqNumber = Integer.parseInt(msgSplit[1]);
 
-//            System.out.println("rcvd from " + senderId + " : " + rcvdMsg);
-//            System.out.println(System.currentTimeMillis());
-
             // if it is an ack message
             if(msgSplit.length == 3) {
-//                FullMessage msg = new FullMessage(senderId, new FIFOMessage(msgSeqNumber, originalSenderId, null));
-//                if(! ackedSet.contains(msg)) {
-//                    ackedSet.add(msg);
-//                }
                 acked3d[senderId][originalSenderId][msgSeqNumber] = true;
             }
             // else if it is a deliver msg, deliver it to the upper channel, and ack it
             else {
-                FullMessage msg = new FullMessage(senderId, new Message(msgSeqNumber, originalSenderId));
-//                System.out.println("sending ACK to " + senderId + " :" + msg);
+                Message msg = new Message(senderId, originalSenderId, msgSeqNumber);
                 pl_ack(senderIp, senderPort, originalSenderId, msgSeqNumber);
-                if(! delivered3d[msg.senderId][msg.fifoMessage.getOriginalSenderId()][msg.fifoMessage.getSeqNumber()] && ! deliverQueue.contains(msg)) {
-//                    if(! deliveredSet.contains(msg) && ! deliverQueue.contains(msg)) {
+                if(! delivered3d[senderId][originalSenderId][msgSeqNumber] && ! deliverQueue.contains(msg)) {
                     try {
                         deliverQueue.put(msg);
                     } catch (InterruptedException e) {

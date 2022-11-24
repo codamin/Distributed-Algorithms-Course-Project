@@ -9,7 +9,7 @@ public class Application {
 
     private String outputPath;
 
-    private Integer lineCapacity = 1000;
+    private Integer lineCapacity = 1;
     private Integer numLines = 0;
 
     PrintWriter writer;

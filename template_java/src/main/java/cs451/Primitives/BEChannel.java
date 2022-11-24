@@ -41,16 +41,16 @@ public class BEChannel {
         this.plChannel.startThreads();
     }
 
-    public void be_broadcast(Message fifoMsg) {
+    public void be_broadcast(Message msg) {
         // do a for loop
         for(Host host: this.hostsList) {
 //            System.out.println("broadcasting msg:" + fifoMsg);
-            plChannel.pl_send(host.getIp(), host.getPort(), broadcaster.getId(), fifoMsg);
+            plChannel.pl_send(host.getIp(), host.getPort(), msg);
         }
     }
 
-    public void be_deliver(Integer senderId, Message msg) {
+    public void be_deliver(Message msg) {
         // deliver : call the delivery function of urb
-        upperChannel.urb_deliver(senderId, msg);
+        upperChannel.urb_deliver(msg);
     }
 }

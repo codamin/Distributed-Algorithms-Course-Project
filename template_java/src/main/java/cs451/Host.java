@@ -91,7 +91,7 @@ public class Host {
     }
 
     private int current_batch = 0;
-    private int capacity = 10;
+    private int capacity = 20;
     private int  msgPerPacket = 8;
 
     private FIFOChannel fifo_channel;

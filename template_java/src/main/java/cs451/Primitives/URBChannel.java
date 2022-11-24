@@ -14,12 +14,8 @@ public class URBChannel {
     private BEChannel beChannel;
 
     private FIFOChannel upperChannel;
-
-//    private HashSet<FIFOMessage> urb_deliveredSet = new HashSet<>();
     private boolean[][] urb_delivered2d;
-//    private HashSet<FIFOMessage> urb_pendingSet = new HashSet<>();
     private boolean[][] urb_pending2d;
-//    private HashMap<FIFOMessage, HashSet<Integer>> urb_ackedMap = new HashMap<>();
     private HashSet<Integer>[][] urb_ackedMap2d;
 
     public URBChannel(List<Host> hostsList, FIFOChannel fifoChannel, Host broadcaster, int NUMPROC, int NUMMSG) {
@@ -33,15 +29,14 @@ public class URBChannel {
         this.beChannel.startThreads();
     }
 
-    public void urb_broadcast(Integer broadcasterId, Message msg) {
-//        System.out.println("urb broadcast...");
+    public void urb_broadcast(Message msg) {
         // put the msg in broadcaster (as the original sender) pending list
-//        this.urb_pendingSet.add(msg);
         urb_pending2d[msg.getOriginalSenderId()][msg.getSeqNumber()] = true;
         this.beChannel.be_broadcast(msg);
     }
 
-    public void urb_deliver(Integer senderId, Message msg) {
+    public void urb_deliver(Message msg) {
+        int senderId = msg.getSenderId();
         //************ ack[m] := ack[m] ∪ {p}; **************
         if(urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()] == null) {
             urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()] = new HashSet<>(){{add(senderId); add(broadcaster.getId());}};
@@ -55,10 +50,10 @@ public class URBChannel {
             urb_pending2d[msg.getOriginalSenderId()][msg.getSeqNumber()] = true;
             beChannel.be_broadcast(msg);
         }
-        checkAndDeliverToFiFo(senderId, msg);
+        checkAndDeliverToFiFo(msg);
     }
 
-    private void checkAndDeliverToFiFo(Integer senderId, Message msg) {
+    private void checkAndDeliverToFiFo(Message msg) {
         if(urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()].size() > (this.hostsList.size()/2)) {
             if(! urb_delivered2d[msg.getOriginalSenderId()][msg.getSeqNumber()]) {
                 System.out.println("urb delivering msg: " + msg);
