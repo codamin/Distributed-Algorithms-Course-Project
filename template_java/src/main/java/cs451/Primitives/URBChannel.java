@@ -43,15 +43,6 @@ public class URBChannel {
 
     public void urb_deliver(Integer senderId, Message msg) {
         //************ ack[m] := ack[m] ∪ {p}; **************
-//        if(urb_ackedMap.get(msg) != null) {
-//            urb_ackedMap.get(msg).add(senderId);
-////            urb_ackedMap.get(msg).add(broadcaster.getId());
-//        }
-//        else {
-////            urb_ackedMap.put(msg, new HashSet<>(){{add(senderId); add(broadcaster.getId());
-////            }});
-//            urb_ackedMap.put(msg, new HashSet<>(){{add(senderId);}});
-//        }
         if(urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()] == null) {
             urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()] = new HashSet<>(){{add(senderId); add(broadcaster.getId());}};
         }
@@ -59,8 +50,7 @@ public class URBChannel {
             urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()].add(senderId);
             urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()].add(broadcaster.getId());
         }
-//        if(! urb_pendingSet.contains(msg)) {
-//            urb_pendingSet.add(msg);
+
         if(! urb_pending2d[msg.getOriginalSenderId()][msg.getSeqNumber()]) {
             urb_pending2d[msg.getOriginalSenderId()][msg.getSeqNumber()] = true;
             beChannel.be_broadcast(msg);
@@ -70,7 +60,6 @@ public class URBChannel {
 
     private void checkAndDeliverToFiFo(Integer senderId, Message msg) {
         if(urb_ackedMap2d[msg.getOriginalSenderId()][msg.getSeqNumber()].size() > (this.hostsList.size()/2)) {
-//            if(urb_ackedMap.get(msg).size() > (this.hostsList.size()/2)) {
             if(! urb_delivered2d[msg.getOriginalSenderId()][msg.getSeqNumber()]) {
                 System.out.println("urb delivering msg: " + msg);
 
@@ -78,11 +67,6 @@ public class URBChannel {
                     System.out.println("requesting next batch");
                     broadcaster.sendNextBatch();
                 }
-//                else if(senderId == this.broadcaster.getId()) {
-//                    System.out.println("requesting next batch");
-//                    broadcaster.sendNextBatch();
-//                }
-//                urb_deliveredSet.add(msg);
                 urb_delivered2d[msg.getOriginalSenderId()][msg.getSeqNumber()] = true;
                 upperChannel.fifo_deliver(msg);
             }

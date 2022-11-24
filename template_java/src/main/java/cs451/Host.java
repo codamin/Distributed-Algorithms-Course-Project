@@ -91,22 +91,7 @@ public class Host {
     }
 
     private int current_batch = 0;
-
-    private String getNextMsg(int intervalBegin, int numOfMsg) {
-        String msg = "";
-        for(int j = intervalBegin; j <= min(numOfMsg, intervalBegin + 8); j++) {
-            applicationLayer.log("b", null, j);
-            msg += Integer.toString(j);
-            if(j != min(numOfMsg, intervalBegin + 8)) {
-                msg += ",";
-            }
-        }
-        this.intervalBegin += 9;
-        return msg;
-    }
-
-    private int capacity = 20;
-
+    private int capacity = 10;
     private int  msgPerPacket = 8;
 
     private FIFOChannel fifo_channel;
