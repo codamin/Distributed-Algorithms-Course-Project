@@ -29,6 +29,8 @@ public class Host {
         this.hostsList = hosts;
     }
 
+
+
     class Logs {
         public String logString = "";
         public synchronized void addLog(String addition) {
@@ -103,25 +105,35 @@ public class Host {
         return msg;
     }
 
-    private int capacity = 1;
+    private int capacity = 20;
 
-    private int batchIndex = 0;
+    private int  msgPerPacket = 8;
 
     private FIFOChannel fifo_channel;
     private int intervalBegin;
     public void sendNextBatch() {
-        if(intervalBegin > numOfMsg)
-            return;
-        String msg = "";
-        applicationLayer.log("b", null, intervalBegin);
-        msg += Integer.toString(intervalBegin);
-        this.intervalBegin += 1;
-        System.out.println("sending msg " + msg);
-        this.fifo_channel.fifo_broadcast(msg);
+        for(int i = 0; i < capacity; i++) {
+            if(intervalBegin > numOfMsg)
+                return;
+            for(int j = intervalBegin; j <= min(numOfMsg, intervalBegin+msgPerPacket-1); j++) {
+//                System.out.println("sending msg " + intervalBegin);
+                applicationLayer.log("b", null, j);
+            }
+            this.fifo_channel.fifo_broadcast();
+            this.intervalBegin += msgPerPacket;
+        }
+    }
+
+    public void deliver(Integer msgSeqNumber, Integer senderId) {
+        for(int i = (msgSeqNumber-1)*msgPerPacket + 1; i <= min(numOfMsg, (msgSeqNumber)*msgPerPacket); i++) {
+            this.applicationLayer.log("d", senderId, i);
+        }
     }
     public void start() {
         intervalBegin = 1;
-        fifo_channel = new FIFOChannel(this.hostsList, this);
+        int NUMPROC = this.hostsList.size() + 1;
+        int NUMMSG = (int) Math.ceil((double) numOfMsg / msgPerPacket) + 1;
+        fifo_channel = new FIFOChannel(this.hostsList, this, NUMPROC, NUMMSG);
 
         this.sendNextBatch();
     }

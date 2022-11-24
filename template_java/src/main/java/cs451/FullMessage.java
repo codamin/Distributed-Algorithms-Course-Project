@@ -1,14 +1,12 @@
 package cs451;
 
-import cs451.FIFOMessage;
-
 import java.util.Objects;
 
 public class FullMessage {
     public Integer senderId;
-    public FIFOMessage fifoMessage;
+    public Message fifoMessage;
 
-    public FullMessage(Integer senderId, FIFOMessage fifoMessage) {
+    public FullMessage(Integer senderId, Message fifoMessage) {
         this.senderId = senderId;
         this.fifoMessage = fifoMessage;
     }

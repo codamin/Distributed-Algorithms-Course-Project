@@ -1,7 +1,7 @@
 package cs451.Primitives;
 
-import cs451.FIFOMessage;
 import cs451.Host;
+import cs451.Message;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,7 +15,7 @@ public class BEChannel {
 
     private URBChannel upperChannel;
     private PLChannel plChannel;
-    public BEChannel(List<Host> hostsList, URBChannel urbChannel, Host broadcaster) {
+    public BEChannel(List<Host> hostsList, URBChannel urbChannel, Host broadcaster, int NUMPROC, int NUMMSG) {
         this.hostsList = hostsList;
         this.broadcaster = broadcaster;
         // creating a host2IdMap to send to pl channel. The pl channel will need it to know the id of the sender of a msg
@@ -34,14 +34,14 @@ public class BEChannel {
 
         ////////////////////////
         this.upperChannel = urbChannel;
-        this.plChannel = new PLChannel(this, broadcaster, host2IdMap);
+        this.plChannel = new PLChannel(this, broadcaster, host2IdMap, NUMPROC, NUMMSG);
     }
 
     public void startThreads() {
         this.plChannel.startThreads();
     }
 
-    public void be_broadcast(FIFOMessage fifoMsg) {
+    public void be_broadcast(Message fifoMsg) {
         // do a for loop
         for(Host host: this.hostsList) {
 //            System.out.println("broadcasting msg:" + fifoMsg);
@@ -49,7 +49,7 @@ public class BEChannel {
         }
     }
 
-    public void be_deliver(Integer senderId, FIFOMessage msg) {
+    public void be_deliver(Integer senderId, Message msg) {
         // deliver : call the delivery function of urb
         upperChannel.urb_deliver(senderId, msg);
     }

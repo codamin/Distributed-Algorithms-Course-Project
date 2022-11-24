@@ -1,0 +1,206 @@
+Hello
+My PID: 3819
+
+My ID: 6
+
+Doing some initialization
+
+num of msg = 1000
+Broadcasting and delivering messages...
+
+urb delivering msg: cs451.Message@4e4a5a2b
+urb delivering msg: cs451.Message@68182473
+urb delivering msg: cs451.Message@33333331
+urb delivering msg: cs451.Message@7c2b8462
+urb delivering msg: cs451.Message@1ac017f9
+urb delivering msg: cs451.Message@33d2936e
+urb delivering msg: cs451.Message@19d2849e
+urb delivering msg: cs451.Message@39fa0b52
+urb delivering msg: cs451.Message@239fbc4b
+urb delivering msg: cs451.Message@3e602f8e
+urb delivering msg: cs451.Message@3288e65d
+urb delivering msg: cs451.Message@6f5974d5
+urb delivering msg: cs451.Message@12b609e5
+urb delivering msg: cs451.Message@2d955862
+urb delivering msg: cs451.Message@58daf983
+urb delivering msg: cs451.Message@7c01d191
+urb delivering msg: cs451.Message@5eda06d5
+urb delivering msg: cs451.Message@598b1324
+urb delivering msg: cs451.Message@5612ef77
+urb delivering msg: cs451.Message@24ed217d
+urb delivering msg: cs451.Message@2a8f779b
+urb delivering msg: cs451.Message@2b9c53dd
+urb delivering msg: cs451.Message@6ab4688e
+urb delivering msg: cs451.Message@279f4a6c
+urb delivering msg: cs451.Message@76fdc2ab
+urb delivering msg: cs451.Message@3f366512
+urb delivering msg: cs451.Message@760f8a62
+urb delivering msg: cs451.Message@2b9e72e5
+urb delivering msg: cs451.Message@336e15a7
+urb delivering msg: cs451.Message@3ffce82d
+urb delivering msg: cs451.Message@352a292a
+urb delivering msg: cs451.Message@6d7b6c30
+urb delivering msg: cs451.Message@2e7b9f15
+urb delivering msg: cs451.Message@761ea777
+urb delivering msg: cs451.Message@1299a3e7
+urb delivering msg: cs451.Message@24b55768
+urb delivering msg: cs451.Message@56c4e7dc
+urb delivering msg: cs451.Message@55e2c76c
+urb delivering msg: cs451.Message@abbc0ac
+urb delivering msg: cs451.Message@43bd884
+urb delivering msg: cs451.Message@753035d8
+urb delivering msg: cs451.Message@362a45b5
+urb delivering msg: cs451.Message@62404d7c
+urb delivering msg: cs451.Message@38e54648
+urb delivering msg: cs451.Message@4c8f2a79
+urb delivering msg: cs451.Message@286cd9b0
+urb delivering msg: cs451.Message@48275a6c
+urb delivering msg: cs451.Message@5ae28226
+urb delivering msg: cs451.Message@6f8bb7e1
+urb delivering msg: cs451.Message@216452f9
+urb delivering msg: cs451.Message@53e28883
+urb delivering msg: cs451.Message@1d5fd36b
+urb delivering msg: cs451.Message@2fd94b9e
+urb delivering msg: cs451.Message@2ca92706
+urb delivering msg: cs451.Message@6bc80480
+urb delivering msg: cs451.Message@86f4619
+urb delivering msg: cs451.Message@6d0f7931
+urb delivering msg: cs451.Message@87be281
+urb delivering msg: cs451.Message@23bc0b0a
+urb delivering msg: cs451.Message@5191deea
+urb delivering msg: cs451.Message@47c1e318
+urb delivering msg: cs451.Message@10797e8b
+urb delivering msg: cs451.Message@535ec3d5
+urb delivering msg: cs451.Message@ce731da
+urb delivering msg: cs451.Message@44f6ca7d
+urb delivering msg: cs451.Message@1fa0794e
+urb delivering msg: cs451.Message@3ac55104
+urb delivering msg: cs451.Message@f99de67
+urb delivering msg: cs451.Message@7d4e58cb
+urb delivering msg: cs451.Message@61383425
+urb delivering msg: cs451.Message@71650477
+requesting next batch
+urb delivering msg: cs451.Message@30ce86da
+urb delivering msg: cs451.Message@3f491808
+urb delivering msg: cs451.Message@1f708ad8
+urb delivering msg: cs451.Message@466f73fd
+urb delivering msg: cs451.Message@253d5bc
+urb delivering msg: cs451.Message@752d14a6
+urb delivering msg: cs451.Message@6e907691
+urb delivering msg: cs451.Message@535d0025
+urb delivering msg: cs451.Message@4fbfd1c7
+urb delivering msg: cs451.Message@522a64b2
+requesting next batch
+urb delivering msg: cs451.Message@3f63a498
+urb delivering msg: cs451.Message@404c779
+urb delivering msg: cs451.Message@35040fd7
+requesting next batch
+urb delivering msg: cs451.Message@348ae231
+urb delivering msg: cs451.Message@166fc75c
+urb delivering msg: cs451.Message@34f2e5e7
+urb delivering msg: cs451.Message@211d2e19
+requesting next batch
+urb delivering msg: cs451.Message@42e5cb61
+urb delivering msg: cs451.Message@2a58a146
+requesting next batch
+urb delivering msg: cs451.Message@926a437
+urb delivering msg: cs451.Message@41033eec
+urb delivering msg: cs451.Message@2d515b6e
+requesting next batch
+urb delivering msg: cs451.Message@42ec9d13
+requesting next batch
+urb delivering msg: cs451.Message@7e579e65
+urb delivering msg: cs451.Message@267b3b1d
+urb delivering msg: cs451.Message@1568e97
+requesting next batch
+urb delivering msg: cs451.Message@27f48fab
+urb delivering msg: cs451.Message@65928986
+urb delivering msg: cs451.Message@1a4ef5fa
+urb delivering msg: cs451.Message@2fd9e212
+requesting next batch
+urb delivering msg: cs451.Message@2c53a995
+requesting next batch
+urb delivering msg: cs451.Message@5d7cdb20
+requesting next batch
+urb delivering msg: cs451.Message@30f01450
+urb delivering msg: cs451.Message@5059a92e
+urb delivering msg: cs451.Message@6177bdb1
+urb delivering msg: cs451.Message@5a69cf64
+urb delivering msg: cs451.Message@6a8b12ed
+urb delivering msg: cs451.Message@7706d64b
+urb delivering msg: cs451.Message@2b40672f
+urb delivering msg: cs451.Message@3fc69fcc
+urb delivering msg: cs451.Message@de8eea3
+urb delivering msg: cs451.Message@4c9dc5db
+urb delivering msg: cs451.Message@64ccaa78
+urb delivering msg: cs451.Message@6f7f61d2
+urb delivering msg: cs451.Message@25281768
+requesting next batch
+urb delivering msg: cs451.Message@739bd0b
+urb delivering msg: cs451.Message@6a758fe
+urb delivering msg: cs451.Message@12c2c809
+urb delivering msg: cs451.Message@77341e6e
+urb delivering msg: cs451.Message@3daf3466
+urb delivering msg: cs451.Message@173eb85
+urb delivering msg: cs451.Message@575e922
+urb delivering msg: cs451.Message@52e5508c
+requesting next batch
+urb delivering msg: cs451.Message@162d42b2
+urb delivering msg: cs451.Message@89cac31
+urb delivering msg: cs451.Message@228a78f9
+urb delivering msg: cs451.Message@5a133d14
+urb delivering msg: cs451.Message@2657dc36
+requesting next batch
+urb delivering msg: cs451.Message@4bc701e9
+urb delivering msg: cs451.Message@3a7bf5d8
+requesting next batch
+urb delivering msg: cs451.Message@7943841e
+urb delivering msg: cs451.Message@616d516c
+requesting next batch
+urb delivering msg: cs451.Message@12d6cce1
+urb delivering msg: cs451.Message@77663e56
+urb delivering msg: cs451.Message@126037d0
+urb delivering msg: cs451.Message@190df2c1
+requesting next batch
+urb delivering msg: cs451.Message@3d9884c5
+urb delivering msg: cs451.Message@7bca99ae
+urb delivering msg: cs451.Message@6887efb0
+urb delivering msg: cs451.Message@1e6a839b
+urb delivering msg: cs451.Message@672d923f
+urb delivering msg: cs451.Message@4885609d
+urb delivering msg: cs451.Message@1f28fc52
+urb delivering msg: cs451.Message@5514d277
+urb delivering msg: cs451.Message@5e230e80
+urb delivering msg: cs451.Message@3dc11c51
+urb delivering msg: cs451.Message@6553add7
+urb delivering msg: cs451.Message@16275c60
+urb delivering msg: cs451.Message@50b6072a
+urb delivering msg: cs451.Message@6520aaf9
+urb delivering msg: cs451.Message@1d658e9f
+urb delivering msg: cs451.Message@318d150f
+urb delivering msg: cs451.Message@5162cb43
+urb delivering msg: cs451.Message@3175d4f4
+urb delivering msg: cs451.Message@55b533
+requesting next batch
+urb delivering msg: cs451.Message@5929fd5b
+requesting next batch
+urb delivering msg: cs451.Message@1e561dee
+requesting next batch
+urb delivering msg: cs451.Message@11bb8a4
+urb delivering msg: cs451.Message@2c4a7999
+urb delivering msg: cs451.Message@3a9f9a6e
+urb delivering msg: cs451.Message@148849be
+urb delivering msg: cs451.Message@480a1d13
+urb delivering msg: cs451.Message@37f3333a
+urb delivering msg: cs451.Message@71798340
+urb delivering msg: cs451.Message@276af168
+urb delivering msg: cs451.Message@3f108213
+urb delivering msg: cs451.Message@11540c28
+urb delivering msg: cs451.Message@2c8aeec1
+urb delivering msg: cs451.Message@5c9bab89
+urb delivering msg: cs451.Message@6720ba13
+urb delivering msg: cs451.Message@56a4df93
+urb delivering msg: cs451.Message@2da3cf60
+Immediately stopping network packet processing.
+Writing output.
+Used memory: 1MB
