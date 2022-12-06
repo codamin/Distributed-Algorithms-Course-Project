@@ -3,7 +3,9 @@ package cs451;
 import cs451.Primitives.Application;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Scanner;
 
 public class Main {
@@ -81,13 +83,28 @@ public class Main {
             throw new RuntimeException(e);
         }
 
-        int numOfMsg = 0;
-        while (myReader.hasNextLine()) {
-            String[] parsedLine = myReader.nextLine().split(" ");
-            numOfMsg = Integer.parseInt(parsedLine[0]);
+        int numOfProposals = 0;
+        int max_elem_in_proposal = 0;
+        int max_distinct_elems = 0;
+
+        ArrayList<HashSet<Integer>> proposals = new ArrayList<>();
+
+        String[] parsedLine = myReader.nextLine().split(" ");
+        numOfProposals = Integer.parseInt(parsedLine[0]);
+        max_elem_in_proposal = Integer.parseInt(parsedLine[1]);
+        max_distinct_elems = Integer.parseInt(parsedLine[2]);
+
+        for(int i = 0; i < numOfProposals; i++) {
+            parsedLine = myReader.nextLine().split(" ");
+            HashSet<Integer> proposal = new HashSet();
+            for(String msg: parsedLine) {
+                proposal.add(Integer.parseInt(msg));
+            }
+            proposals.add(proposal);
         }
 
-        System.out.println("num of msg = " + numOfMsg);
+
+        System.out.println("num of proposals = " + numOfProposals);
 
         System.out.println("Broadcasting and delivering messages...\n");
 
@@ -107,7 +124,7 @@ public class Main {
         // Set Hosts' output paths
         for(Host host_: parser.hosts()) {
             host_.setApplicationLayer(applicationLayer);
-            host_.setNumOfMsg(numOfMsg);
+            host_.setProposals(proposals);
         }
 
         // find the host object corresponding to the current process

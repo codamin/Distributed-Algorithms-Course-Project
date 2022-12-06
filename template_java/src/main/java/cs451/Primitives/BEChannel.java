@@ -1,21 +1,23 @@
 package cs451.Primitives;
 
 import cs451.Host;
-import cs451.Message;
+import cs451.Primitives.Messages.Ack;
+import cs451.Primitives.Messages.Message;
+import cs451.Primitives.Messages.Nack;
+import cs451.Primitives.Messages.Proposal;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 
 public class BEChannel {
 
     private Host broadcaster;
     private List<Host> hostsList;
+    public PLChannel plChannel;
 
-    private URBChannel upperChannel;
-    private PLChannel plChannel;
-    public BEChannel(List<Host> hostsList, URBChannel urbChannel, Host broadcaster, int NUMPROC, int NUMMSG) {
+    public Consensus consensus;
+
+    public BEChannel(List<Host> hostsList, Consensus consensus, Host broadcaster, int NUMPROC, int NUMMSG) {
         this.hostsList = hostsList;
         this.broadcaster = broadcaster;
         // creating a host2IdMap to send to pl channel. The pl channel will need it to know the id of the sender of a msg
@@ -33,7 +35,7 @@ public class BEChannel {
         }
 
         ////////////////////////
-        this.upperChannel = urbChannel;
+        this.consensus = consensus;
         this.plChannel = new PLChannel(this, broadcaster, host2IdMap, NUMPROC, NUMMSG);
     }
 
@@ -41,16 +43,26 @@ public class BEChannel {
         this.plChannel.startThreads();
     }
 
-    public void be_broadcast(Message msg) {
+    public void be_broadcast(Proposal proposal) {
         // do a for loop
         for(Host host: this.hostsList) {
 //            System.out.println("broadcasting msg:" + fifoMsg);
-            plChannel.pl_send(host.getIp(), host.getPort(), msg);
+            plChannel.pl_send(host.getIp(), host.getPort(), proposal);
         }
     }
 
-    public void be_deliver(Message msg) {
-        // deliver : call the delivery function of urb
-        upperChannel.urb_deliver(msg);
+    public void be_deliver(String sourceIp, Integer sourcePort, Message msg) {
+        if(msg instanceof Proposal) {
+            System.out.println("be delivering a proposal");
+            consensus.get_proposal(sourceIp, sourcePort, msg.getProposal_number(), ((Proposal) msg).getProposed_value());
+        }
+        else if(msg instanceof Ack) {
+            System.out.println("be delivering an ack");
+            consensus.consensus_ack(msg.getProposal_number());
+        }
+        else if(msg instanceof Nack) {
+            System.out.println("be delivering a nack");
+            consensus.consensus_nack(msg.getProposal_number(), ((Nack) msg).getAccepted_value());
+        }
     }
 }

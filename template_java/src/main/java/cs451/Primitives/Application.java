@@ -4,12 +4,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
+import java.util.HashSet;
 
 public class Application {
 
     private String outputPath;
 
-    private Integer lineCapacity = 1000;
+    private Integer lineCapacity = 0;
     private Integer numLines = 0;
 
     PrintWriter writer;
@@ -28,18 +29,18 @@ public class Application {
         writer.close();
     }
 
-    public synchronized void log(String typeOfOperation, Integer senderId, Integer msgSeqNumber) {
+    public synchronized void log(HashSet<Integer> decision) {
         if(numLines.equals(lineCapacity)) {
             this.flush();
             numLines = 0;
         }
         numLines += 1;
-        if(typeOfOperation.equals("d")) {
-            logs.addLog(typeOfOperation + " " + senderId + " " + msgSeqNumber.toString());
+
+        String out = "";
+        for(Integer elem: decision) {
+            out += elem.toString() + " ";
         }
-        else if(typeOfOperation.equals("b")) {
-            logs.addLog(typeOfOperation + " " + msgSeqNumber.toString());
-        }
+        this.logs.addLog(out.substring(0, out.length()-1));
     }
     private void flush() {
         try {

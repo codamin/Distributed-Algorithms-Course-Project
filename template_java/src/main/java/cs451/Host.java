@@ -1,20 +1,24 @@
 package cs451;
 import cs451.Primitives.Application;
-import cs451.Primitives.FIFOChannel;
+import cs451.Primitives.Consensus;
 
-import java.io.*;
 import java.net.*;
 import java.util.*;
 
 import static java.lang.Math.min;
 
 public class Host {
-
     Application applicationLayer;
-    List<Host> hostsList;
 
-    public void setNumOfMsg(int numOfMsg) {
-        this.numOfMsg = numOfMsg;
+    public List<Host> getHostsList() {
+        return hostsList;
+    }
+
+    List<Host> hostsList;
+    ArrayList<HashSet<Integer>> proposals;
+
+    public void setProposals(ArrayList<HashSet<Integer>> proposals) {
+        this.proposals = proposals;
     }
 
     int numOfMsg;
@@ -28,8 +32,6 @@ public class Host {
     public void setHosts(List<Host> hosts) {
         this.hostsList = hosts;
     }
-
-
 
     class Logs {
         public String logString = "";
@@ -94,32 +96,34 @@ public class Host {
     private int capacity = 10;
     private int  msgPerPacket = 8;
 
-    private FIFOChannel fifo_channel;
-    private int intervalBegin;
-    public void sendNextBatch() {
-        for(int i = 0; i < capacity; i++) {
-            if(intervalBegin > numOfMsg)
-                return;
-            for(int j = intervalBegin; j <= min(numOfMsg, intervalBegin+msgPerPacket-1); j++) {
-//                System.out.println("sending msg " + intervalBegin);
-                applicationLayer.log("b", null, j);
-            }
-            this.fifo_channel.fifo_broadcast();
-            this.intervalBegin += msgPerPacket;
-        }
-    }
+    private Consensus consensus;
+//    private int intervalBegin;
+//    public void sendNextBatch() {
+//        for(int i = 0; i < capacity; i++) {
+//            if(intervalBegin > numOfMsg)
+//                return;
+//            for(int j = intervalBegin; j <= min(numOfMsg, intervalBegin+msgPerPacket-1); j++) {
+////                System.out.println("sending msg " + intervalBegin);
+//                applicationLayer.log("b", null, j);
+//            }
+//            this.fifo_channel.fifo_broadcast();
+//            this.intervalBegin += msgPerPacket;
+//        }
+//    }
 
-    public void deliver(Integer msgSeqNumber, Integer senderId) {
-        for(int i = (msgSeqNumber-1)*msgPerPacket + 1; i <= min(numOfMsg, (msgSeqNumber)*msgPerPacket); i++) {
-            this.applicationLayer.log("d", senderId, i);
-        }
-    }
+//    public void deliver(Integer msgSeqNumber, Integer senderId) {
+//        for(int i = (msgSeqNumber-1)*msgPerPacket + 1; i <= min(numOfMsg, (msgSeqNumber)*msgPerPacket); i++) {
+//            this.applicationLayer.log("d", senderId, i);
+//        }
+//    }
     public void start() {
-        intervalBegin = 1;
+//        intervalBegin = 1;
         int NUMPROC = this.hostsList.size() + 1;
-        int NUMMSG = (int) Math.ceil((double) numOfMsg / msgPerPacket) + 1;
-        fifo_channel = new FIFOChannel(this.hostsList, this, NUMPROC, NUMMSG);
-
-        this.sendNextBatch();
+        int NUMMSG = numOfMsg + 1;
+//        fifo_channel = new FIFOChannel(this.hostsList, this, NUMPROC, NUMMSG);
+//
+//        this.sendNextBatch();
+        this.consensus = new Consensus(this, NUMPROC, NUMMSG);
+        consensus.propose(proposals.get(0));
     }
 }
