@@ -248,7 +248,7 @@ public class PLChannel {
                     msg_to_be_delivred = new Nack(Integer.parseInt(msgSplit[1]), msgSplit[2]);
                 }
                 else if(firstChar == '@'){ // if it is a proposal
-                    msg_to_be_delivred = new Proposal(Integer.parseInt(msgSplit[1]), msgSplit[2]);
+                    msg_to_be_delivred = new Proposal(Integer.parseInt(msgSplit[1]), Integer.parseInt(msgSplit[2]), msgSplit[3]);
                 }
 
                 pl_ack(senderIp, senderPort, msg_to_be_delivred);

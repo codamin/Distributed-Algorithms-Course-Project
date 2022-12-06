@@ -9,7 +9,6 @@ import java.util.HashSet;
 public class Application {
 
     private String outputPath;
-
     private Integer lineCapacity = 0;
     private Integer numLines = 0;
 

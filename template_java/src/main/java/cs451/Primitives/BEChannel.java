@@ -53,16 +53,16 @@ public class BEChannel {
 
     public void be_deliver(String sourceIp, Integer sourcePort, Message msg) {
         if(msg instanceof Proposal) {
-            System.out.println("be delivering a proposal");
-            consensus.get_proposal(sourceIp, sourcePort, msg.getProposal_number(), ((Proposal) msg).getProposed_value());
+//            System.out.println("be delivering a proposal");
+            consensus.get_proposal(sourceIp, sourcePort, (Proposal) msg);
         }
         else if(msg instanceof Ack) {
-            System.out.println("be delivering an ack");
-            consensus.consensus_ack(msg.getProposal_number());
+//            System.out.println("be delivering an ack");
+            consensus.consensus_ack((Ack) msg);
         }
         else if(msg instanceof Nack) {
-            System.out.println("be delivering a nack");
-            consensus.consensus_nack(msg.getProposal_number(), ((Nack) msg).getAccepted_value());
+//            System.out.println("be delivering a nack");
+            consensus.consensus_nack((Nack) msg);
         }
     }
 }

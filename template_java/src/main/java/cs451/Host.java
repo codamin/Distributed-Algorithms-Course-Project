@@ -1,6 +1,7 @@
 package cs451;
 import cs451.Primitives.Application;
 import cs451.Primitives.Consensus;
+import cs451.Primitives.Messages.Proposal;
 
 import java.net.*;
 import java.util.*;
@@ -97,33 +98,23 @@ public class Host {
     private int  msgPerPacket = 8;
 
     private Consensus consensus;
-//    private int intervalBegin;
+    private Integer last_sent = 0;
 //    public void sendNextBatch() {
-//        for(int i = 0; i < capacity; i++) {
-//            if(intervalBegin > numOfMsg)
-//                return;
-//            for(int j = intervalBegin; j <= min(numOfMsg, intervalBegin+msgPerPacket-1); j++) {
-////                System.out.println("sending msg " + intervalBegin);
-//                applicationLayer.log("b", null, j);
-//            }
-//            this.fifo_channel.fifo_broadcast();
-//            this.intervalBegin += msgPerPacket;
-//        }
+//        consensus.propose(proposals.get(last_sent));
+//        last_sent += 1;
 //    }
 
-//    public void deliver(Integer msgSeqNumber, Integer senderId) {
-//        for(int i = (msgSeqNumber-1)*msgPerPacket + 1; i <= min(numOfMsg, (msgSeqNumber)*msgPerPacket); i++) {
-//            this.applicationLayer.log("d", senderId, i);
-//        }
-//    }
     public void start() {
-//        intervalBegin = 1;
         int NUMPROC = this.hostsList.size() + 1;
         int NUMMSG = numOfMsg + 1;
-//        fifo_channel = new FIFOChannel(this.hostsList, this, NUMPROC, NUMMSG);
-//
-//        this.sendNextBatch();
-        this.consensus = new Consensus(this, NUMPROC, NUMMSG);
-        consensus.propose(proposals.get(0));
+
+        this.consensus = new Consensus(this, NUMPROC, NUMMSG, proposals);
+
+        this.consensus.start();
+
+//        for(HashSet<Integer> proposal: this.proposals) {
+//            System.out.println("proposing:" + proposal);
+//            consensus.propose(proposal);
+//        }
     }
 }

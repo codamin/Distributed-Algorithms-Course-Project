@@ -2,101 +2,126 @@ package cs451.Primitives;
 
 import cs451.Host;
 import cs451.Primitives.Messages.Ack;
-import cs451.Primitives.Messages.Message;
 import cs451.Primitives.Messages.Nack;
 import cs451.Primitives.Messages.Proposal;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class Consensus {
-    boolean active;
-    Integer ack_count;
-    Integer nack_count;
-    Integer active_proposal_number;
+//    boolean active;
+    private HashMap<Integer, Boolean> actives = new HashMap<>();
+//    private Integer ack_count;
+    private HashMap<Integer, Integer> ack_counts = new HashMap<>();
+//    private Integer nack_count;
+    private HashMap<Integer, Integer> nack_counts = new HashMap<>();
+//    private HashSet<Integer> proposed_value;
+//    private HashMap<Integer, HashSet<Integer>> proposed_values = new HashMap<>();
 
-    Integer f;
-    private HashSet<Integer> proposed_value;
-
+    private HashMap<Integer, Integer> round_starting_proposal_number = new HashMap<>();
+    private Integer active_proposal_number;
+    private Integer f;
+    private Integer round = -1;
     private Host broadcaster;
     private BEChannel beChannel;
-    public Consensus(Host broadcaster,Integer NUMPROC, Integer NUMMSG) {
-        this.broadcaster = broadcaster;
 
-        this.active = false;
-        this.ack_count = 0;
-        this.nack_count = 0;
+    private ArrayList<HashSet<Integer>> all_proposals;
+
+    public Consensus(Host broadcaster, Integer NUMPROC, Integer NUMMSG, ArrayList<HashSet<Integer>> all_proposals) {
+        this.broadcaster = broadcaster;
+        this.all_proposals = all_proposals;
+
+        this.actives.put(round, false);
+        this.ack_counts.put(round, 0);
+        this.nack_counts.put(round, 0);
         this.active_proposal_number = 0;
-        this.proposed_value = null;
         this.f = (NUMPROC-1)/2;
 
         this.beChannel = new BEChannel(this.broadcaster.getHostsList(), this, this.broadcaster, NUMPROC, NUMMSG);
         this.beChannel.startThreads();
     }
 
-    public void propose(HashSet<Integer> proposal) {
-        this.proposed_value = proposal;
-        this.active = true;
+    public void start() {
+        this.propose_next();
+    }
+
+    public void propose_next() {
+        this.round += 1;
+        if(this.round > this.all_proposals.size() - 1) {
+            return;
+        }
+
+//        this.proposed_values.put(round, proposal);
+        this.actives.put(round, true);
 
         this.active_proposal_number += 1;
-        this.ack_count = 0;
-        this.nack_count = 0;
-        this.beChannel.be_broadcast(new Proposal(active_proposal_number, (HashSet<Integer>) proposed_value.clone()));
+        this.round_starting_proposal_number.put(this.round, this.active_proposal_number);
+
+        this.ack_counts.put(round, 0);
+        this.nack_counts.put(round, 0);
+        this.beChannel.be_broadcast(new Proposal(this.round, this.active_proposal_number, (HashSet<Integer>) this.all_proposals.get(this.round).clone()));
     }
 
-    public void consensus_ack(Integer proposal_number) {
-        System.out.println("rcvd ack for proposal: " + proposal_number + " active_proposal_number = " + this.active_proposal_number);
-        if(proposal_number == this.active_proposal_number) {
-            this.ack_count += 1;
+    public void consensus_ack(Ack ack) {
+//        System.out.println("rcvd ack for proposal: " + ack.getProposal_number() + " active_proposal_number = " + this.active_proposal_number);
+        if(ack.getProposal_number() == this.active_proposal_number) {
+            this.ack_counts.put(this.round, this.ack_counts.get(round) + 1);
 
-            this.handle_rcvd_msg();
+            this.handle_rcvd_ack_nack();
         }
     }
 
-    public void consensus_nack(Integer proposal_number, HashSet value) {
-        System.out.println("rcvd nack for proposal: " + proposal_number + " active_proposal_number = " + this.active_proposal_number);
-        if(proposal_number == this.active_proposal_number) {
-            this.proposed_value.addAll(value);
-            this.nack_count += 1;
+    public void consensus_nack(Nack nack) {
+        System.out.println("rcvd nack for proposal: " + nack.getProposal_number() + " active_proposal_number = " + this.active_proposal_number);
+        if(nack.getProposal_number() == this.active_proposal_number) {
+            this.all_proposals.get(this.round).addAll(nack.getAccepted_value());
+            this.nack_counts.put(this.round, this.nack_counts.get(this.round) + 1);
 
-            this.handle_rcvd_msg();
+            this.handle_rcvd_ack_nack();
         }
     }
 
-    public void get_proposal(String sourceIP, Integer sourcePort, Integer proposal_number, HashSet<Integer> incoming_proposed_value) {
-        System.out.println("rcvd proposal with number: " + proposal_number);
-        if(incoming_proposed_value.containsAll(this.proposed_value)) {
+    public void get_proposal(String sourceIP, Integer sourcePort, Proposal proposal) {
+        System.out.println("rcvd proposal with number: " + proposal.getProposal_number());
+        if(proposal.getProposed_value().containsAll(this.all_proposals.get(proposal.getCorresponding_round()))) {
             //send ack
-            this.beChannel.plChannel.pl_send(sourceIP, sourcePort, new Ack(proposal_number));
+            this.beChannel.plChannel.pl_send(sourceIP, sourcePort, new Ack(proposal.getProposal_number()));
         }
         else {
             //send nack
-            this.proposed_value.addAll(incoming_proposed_value);
-            this.beChannel.plChannel.pl_send(sourceIP, sourcePort, new Nack(proposal_number, this.proposed_value));
+            this.all_proposals.get(proposal.getCorresponding_round()).addAll(proposal.getProposed_value());
+            this.beChannel.plChannel.pl_send(sourceIP, sourcePort, new Nack(proposal.getProposal_number(),
+                    (HashSet<Integer>) this.all_proposals.get(proposal.getCorresponding_round()).clone()));
         }
     }
 
-    public void handle_rcvd_msg() {
-        System.out.println("handling rcvd ack/nack:");
-        System.out.println("active: " + this.active);
-        System.out.println("ack_count: " + this.ack_count);
-        System.out.println("nack_count: " + this.nack_count);
+    public void handle_rcvd_ack_nack() {
+//        System.out.println("handling rcvd ack/nack:");
+//        System.out.println("active: " + this.actives.get(round));
+//        System.out.println("ack_count: " + this.ack_counts.get(round));
+//        System.out.println("nack_count: " + this.nack_counts.get(round));
 
-        if ((this.ack_count > this.f + 1) && (this.active)) {
+        if ((this.ack_counts.get(round) > this.f + 1) && (this.actives.get(round))) {
             System.out.println("deciding...");
+            this.actives.put(round, false);
             this.decide();
-            this.active = false;
         }
 
-        if ((this.nack_count > 0) && (this.ack_count + this.nack_count >= this.f + 1) && (this.active)) {
-            System.out.println("Sending refined proposal");
+        if ((this.nack_counts.get(round) > 0) && (this.ack_counts.get(round) +
+                this.nack_counts.get(round) >= this.f + 1) && (this.actives.get(round))) {
+//            System.out.println("Sending refined proposal");
             this.active_proposal_number += 1;
-            this.ack_count = 0;
-            this.nack_count = 0;
-            this.beChannel.be_broadcast(new Proposal(active_proposal_number, (HashSet<Integer>) this.proposed_value.clone()));
+            this.ack_counts.put(round, 0);
+            this.nack_counts.put(round, 0);
+            this.beChannel.be_broadcast(new Proposal(this.round, active_proposal_number, (HashSet<Integer>) this.all_proposals.get(round).clone()));
         }
     }
 
     private void decide() {
-        this.broadcaster.getApplicationLayer().log(this.proposed_value);
+        this.broadcaster.getApplicationLayer().log(this.all_proposals.get(round));
+//        this.broadcaster.sendNextBatch();
+        this.propose_next();
+        System.out.println("sending next");
     }
 }
