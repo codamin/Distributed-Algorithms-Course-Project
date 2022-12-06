@@ -14,7 +14,6 @@ public class BEChannel {
     private Host broadcaster;
     private List<Host> hostsList;
     public PLChannel plChannel;
-
     public Consensus consensus;
 
     public BEChannel(List<Host> hostsList, Consensus consensus, Host broadcaster, int NUMPROC, int NUMMSG) {

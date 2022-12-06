@@ -39,7 +39,8 @@ public class Application {
         for(Integer elem: decision) {
             out += elem.toString() + " ";
         }
-        this.logs.addLog(out.substring(0, out.length()-1));
+//        this.logs.addLog(out.substring(0, out.length()-1));
+        this.logs.addLog(out);
     }
     private void flush() {
         try {

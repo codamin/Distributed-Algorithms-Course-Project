@@ -16,6 +16,8 @@ public class Consensus {
     private HashMap<Integer, Integer> ack_counts = new HashMap<>();
 //    private Integer nack_count;
     private HashMap<Integer, Integer> nack_counts = new HashMap<>();
+
+    private HashMap<Integer, HashSet<Integer>> accepted_values = new HashMap<>();
 //    private HashSet<Integer> proposed_value;
 //    private HashMap<Integer, HashSet<Integer>> proposed_values = new HashMap<>();
 
@@ -51,6 +53,7 @@ public class Consensus {
         if(this.round > this.all_proposals.size() - 1) {
             return;
         }
+        this.accepted_values.computeIfAbsent(round, k -> new HashSet<>());
 
 //        this.proposed_values.put(round, proposal);
         this.actives.put(round, true);
@@ -84,15 +87,17 @@ public class Consensus {
 
     public void get_proposal(String sourceIP, Integer sourcePort, Proposal proposal) {
         System.out.println("rcvd proposal with number: " + proposal.getProposal_number());
-        if(proposal.getProposed_value().containsAll(this.all_proposals.get(proposal.getCorresponding_round()))) {
+        this.accepted_values.computeIfAbsent(proposal.getCorresponding_round(), k -> new HashSet<>());
+        if(proposal.getProposed_value().containsAll(this.accepted_values.get(proposal.getCorresponding_round()))) {
             //send ack
+            this.accepted_values.put(proposal.getCorresponding_round(), proposal.getProposed_value());
             this.beChannel.plChannel.pl_send(sourceIP, sourcePort, new Ack(proposal.getProposal_number()));
         }
         else {
             //send nack
-            this.all_proposals.get(proposal.getCorresponding_round()).addAll(proposal.getProposed_value());
+            this.accepted_values.get(proposal.getCorresponding_round()).addAll(proposal.getProposed_value());
             this.beChannel.plChannel.pl_send(sourceIP, sourcePort, new Nack(proposal.getProposal_number(),
-                    (HashSet<Integer>) this.all_proposals.get(proposal.getCorresponding_round()).clone()));
+                    (HashSet<Integer>) this.accepted_values.get(proposal.getCorresponding_round()).clone()));
         }
     }
 
@@ -100,17 +105,15 @@ public class Consensus {
 //        System.out.println("handling rcvd ack/nack:");
 //        System.out.println("active: " + this.actives.get(round));
 //        System.out.println("ack_count: " + this.ack_counts.get(round));
-//        System.out.println("nack_count: " + this.nack_counts.get(round));
-
-        if ((this.ack_counts.get(round) > this.f + 1) && (this.actives.get(round))) {
+//        System.out.println("nack_count: " + this.nack_counts.get(round))
+        if ((this.ack_counts.get(round) != null) && (this.ack_counts.get(round) > this.f + 1) && (this.actives.get(round))) {
             System.out.println("deciding...");
             this.actives.put(round, false);
             this.decide();
         }
 
-        if ((this.nack_counts.get(round) > 0) && (this.ack_counts.get(round) +
+        if ((this.nack_counts.get(round) != null) && (this.ack_counts.get(round) != null) && (this.nack_counts.get(round) > 0) && (this.ack_counts.get(round) +
                 this.nack_counts.get(round) >= this.f + 1) && (this.actives.get(round))) {
-//            System.out.println("Sending refined proposal");
             this.active_proposal_number += 1;
             this.ack_counts.put(round, 0);
             this.nack_counts.put(round, 0);
@@ -119,7 +122,7 @@ public class Consensus {
     }
 
     private void decide() {
-        this.broadcaster.getApplicationLayer().log(this.all_proposals.get(round));
+        this.broadcaster.getApplicationLayer().log(this.accepted_values.get(round));
 //        this.broadcaster.sendNextBatch();
         this.propose_next();
         System.out.println("sending next");
