@@ -6,12 +6,14 @@ public class Nack extends Message{
     String delim = ",";
     protected HashSet<Integer> accepted_value;
 
-    public Nack(int proposal_number, HashSet<Integer> accepted_value) {
+    public Nack(Integer round, Integer proposal_number, HashSet<Integer> accepted_value) {
+        this.round = round;
         this.proposal_number = proposal_number;
         this.accepted_value = accepted_value;
     }
 
-    public Nack(int proposal_number, String accepted_value) {
+    public Nack(Integer round, Integer proposal_number, String accepted_value) {
+        this.round = round;
         this.proposal_number = proposal_number;
         this.accepted_value = new HashSet<>();
         for(String s: accepted_value.split(this.delim)) {
@@ -29,7 +31,7 @@ public class Nack extends Message{
     }
     @Override
     public String toPacketString() {
-        return "N" + " " + proposal_number + " " +  this.setToString(this.accepted_value, this.delim);
+        return "N" + " " + round + " " + proposal_number + " " +  this.setToString(this.accepted_value, this.delim);
     }
 
     @Override

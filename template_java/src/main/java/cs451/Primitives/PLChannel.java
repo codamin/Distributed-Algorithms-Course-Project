@@ -95,11 +95,11 @@ public class PLChannel {
 
     private void sendFromQueue() {
         while(true) {
-            try {
-                Thread.sleep(3);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+//            try {
+//                Thread.sleep(3);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
             SendingQueueInfo sendingQueueInfo = null;
             try {sendingQueueInfo = resendingQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
 
@@ -235,10 +235,10 @@ public class PLChannel {
                 Message msg_to_be_delivred = null;
                 // Deliver if is not already + Acknowledge it
                 if(firstChar == 'A') { // if it is a consensus ack :
-                    msg_to_be_delivred = new Ack(Integer.parseInt(msgSplit[1]));
+                    msg_to_be_delivred = new Ack(Integer.parseInt(msgSplit[1]), Integer.parseInt(msgSplit[2]));
                 }
                 else if(firstChar == 'N') { // if it is a consensus nack
-                    msg_to_be_delivred = new Nack(Integer.parseInt(msgSplit[1]), msgSplit[2]);
+                    msg_to_be_delivred = new Nack(Integer.parseInt(msgSplit[1]), Integer.parseInt(msgSplit[2]), msgSplit[3]);
                 }
                 else if(firstChar == '@'){ // if it is a proposal
                     msg_to_be_delivred = new Proposal(Integer.parseInt(msgSplit[1]), Integer.parseInt(msgSplit[2]), msgSplit[3]);

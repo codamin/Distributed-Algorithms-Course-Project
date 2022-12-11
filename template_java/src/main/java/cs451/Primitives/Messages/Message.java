@@ -1,10 +1,13 @@
 package cs451.Primitives.Messages;
 
 import java.util.HashSet;
-import java.util.Objects;
 
 public abstract class Message {
     protected Integer proposal_number;
+
+    public Integer getRound() {return round;}
+    protected Integer round;
+
     public Integer getProposal_number() {return proposal_number;}
     abstract public String toPacketString();
     abstract public String getAckMsg();

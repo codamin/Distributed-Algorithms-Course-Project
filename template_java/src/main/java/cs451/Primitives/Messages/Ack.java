@@ -1,7 +1,8 @@
 package cs451.Primitives.Messages;
 
 public class Ack extends Message{
-    public Ack(int proposal_number) {
+    public Ack(Integer round, int proposal_number) {
+        this.round = round;
         this.proposal_number = proposal_number;
     }
 
@@ -11,7 +12,7 @@ public class Ack extends Message{
     }
     @Override
     public String toPacketString() {
-        return "A" + " " + proposal_number;
+        return "A" + " " + round + " " + proposal_number;
     }
 
     @Override

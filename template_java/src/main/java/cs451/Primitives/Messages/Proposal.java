@@ -4,22 +4,16 @@ import java.util.HashSet;
 
 public class Proposal extends Message {
     String delim = ",";
-    protected Integer corresponding_round;
-
     protected HashSet<Integer> proposed_value;
 
-    public Integer getCorresponding_round() {
-        return corresponding_round;
-    }
-
-    public Proposal(Integer corresponding_round,Integer proposal_number, HashSet<Integer> proposed_value) {
-        this.corresponding_round = corresponding_round;
+    public Proposal(Integer round,Integer proposal_number, HashSet<Integer> proposed_value) {
+        this.round = round;
         this.proposal_number = proposal_number;
         this.proposed_value = proposed_value;
     }
 
-    public Proposal(Integer corresponding_round, Integer proposal_number, String proposed_value) {
-        this.corresponding_round = corresponding_round;
+    public Proposal(Integer round, Integer proposal_number, String proposed_value) {
+        this.round = round;
         this.proposal_number = proposal_number;
         this.proposed_value = new HashSet<>();
         for(String s: proposed_value.split(this.delim)) {
@@ -33,12 +27,12 @@ public class Proposal extends Message {
 
     @Override
     public String toString() {
-        return "proposal number: " + proposal_number + " -- " + "proposed_value: " + this.setToString(this.proposed_value, this.delim);
+        return "round: " + round + " number: " + proposal_number + " value: " + this.setToString(this.proposed_value, this.delim);
     }
 
     @Override
     public String toPacketString() {
-        return "@" + " " + corresponding_round + " " + proposal_number + " " + this.setToString(this.proposed_value, this.delim);
+        return "@" + " " + round + " " + proposal_number + " " + this.setToString(this.proposed_value, this.delim);
     }
 
     @Override
