@@ -211,7 +211,7 @@ public class PLChannel {
             String rcvdMsg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
             int senderId = host2IdMap.get(senderIp).get(senderPort);
 
-            System.out.println("rcvd msg:" + rcvdMsg + " from:" + senderId);
+//            System.out.println("rcvd msg:" + rcvdMsg + " from:" + senderId);
 
             String[] msgSplit = rcvdMsg.split(" ");
 

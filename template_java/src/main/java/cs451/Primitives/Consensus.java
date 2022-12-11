@@ -41,7 +41,7 @@ public class Consensus {
 
     private void propose_first_batch() {
 //        this.lock = true;
-        for(int i = 0; i < 10; i++) {
+        for(int i = 0; i < 5; i++) {
             this.propose_next();
         }
 //        this.lock = false;
@@ -49,12 +49,15 @@ public class Consensus {
 
     private void propose_next() {
         this.next_round += 1;
-        if(this.next_round > this.all_proposals.size() - 1) {
+        if(this.next_round > this.all_proposals.size()) {
+            return;
+        }
+        if(this.next_round == this.all_proposals.size()) {
             System.out.println("finished");
             return;
         }
 
-        System.out.println("total: " + this.all_proposals.size() + " proposing round: " + this.next_round);
+//        System.out.println("total: " + this.all_proposals.size() + " proposing round: " + this.next_round);
         this.accepted_values.computeIfAbsent(next_round, k -> new HashSet<>());
         this.active.put(this.next_round, true);
 
@@ -71,12 +74,7 @@ public class Consensus {
         Integer ack_round = ack.getRound();
         if(ack.getProposal_number().equals(this.round_last_proposal_number.get(ack_round))) {
             this.ack_count.put(ack_round, this.ack_count.get(ack_round) + 1);
-
-            if ((this.ack_count.get(ack_round) >= this.f + 1) && this.active.get(ack_round)) {
-//            System.out.println("deciding...");
-                this.active.put(ack_round, false);
-                this.decide(ack_round);
-            }
+            this.handle_ack_nack(ack_round);
         }
     }
 
@@ -85,14 +83,23 @@ public class Consensus {
         if(nack.getProposal_number().equals(this.round_last_proposal_number.get(nack_round))) {
             this.all_proposals.get(nack_round).addAll(nack.getAccepted_value());
             this.nack_count.put(nack_round, this.nack_count.get(nack_round) + 1);
+            this.handle_ack_nack(nack_round);
+        }
+    }
 
-            if (this.active.get(nack_round) && (this.ack_count.get(nack_round) + this.nack_count.get(nack_round) >= this.f + 1)) {
-                this.active_proposal_number += 1;
-                this.round_last_proposal_number.put(nack_round, this.active_proposal_number);
-                this.ack_count.put(nack_round, 0);
-                this.nack_count.put(nack_round, 0);
-                this.beChannel.be_broadcast(new Proposal(nack_round, active_proposal_number, (HashSet<Integer>) this.all_proposals.get(nack_round).clone()));
-            }
+    private void handle_ack_nack(Integer round) {
+        if ((this.ack_count.get(round) >= this.f + 1) && this.active.get(round)) {
+//            System.out.println("deciding...");
+            this.active.put(round, false);
+            this.decide(round);
+        }
+
+        if (this.active.get(round) && (this.ack_count.get(round) + this.nack_count.get(round) >= this.f + 1)) {
+            this.active_proposal_number += 1;
+            this.round_last_proposal_number.put(round, this.active_proposal_number);
+            this.ack_count.put(round, 0);
+            this.nack_count.put(round, 0);
+            this.beChannel.be_broadcast(new Proposal(round, active_proposal_number, (HashSet<Integer>) this.all_proposals.get(round).clone()));
         }
     }
 
