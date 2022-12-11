@@ -79,11 +79,13 @@ public class Consensus {
         if(nack.getProposal_number().equals(this.active_proposal_number)) {
             this.all_proposals.get(this.round).addAll(nack.getAccepted_value());
             this.nack_count += 1;
-//            this.handle_rcvd_ack_nack();
-            this.active_proposal_number += 1;
-            this.ack_count = 0;
-            this.nack_count = 0;
-            this.beChannel.be_broadcast(new Proposal(this.round, active_proposal_number, (HashSet<Integer>) this.all_proposals.get(round).clone()));
+
+            if (this.active && (this.ack_count + this.nack_count >= this.f + 1)) {
+                this.active_proposal_number += 1;
+                this.ack_count = 0;
+                this.nack_count = 0;
+                this.beChannel.be_broadcast(new Proposal(this.round, active_proposal_number, (HashSet<Integer>) this.all_proposals.get(round).clone()));
+            }
         }
     }
 
@@ -101,21 +103,6 @@ public class Consensus {
                     (HashSet<Integer>) this.all_proposals.get(proposal.getCorresponding_round()).clone()));
         }
     }
-
-//    public void handle_rcvd_ack_nack() {
-////        if ((this.nack_count > 0) && (this.ack_count + this.nack_count >= this.f + 1)) {
-////            this.active_proposal_number += 1;
-////            this.ack_count = 0;
-////            this.nack_count = 0;
-////            this.beChannel.be_broadcast(new Proposal(this.round, active_proposal_number, (HashSet<Integer>) this.all_proposals.get(round).clone()));
-////        }
-//
-////        if ((this.ack_count >= this.f + 1)) {
-//////            System.out.println("deciding...");
-//////            this.active = false;
-////            this.decide();
-//        }
-//    }
 
     private void decide() {
         this.broadcaster.getApplicationLayer().log(this.all_proposals.get(this.round));
