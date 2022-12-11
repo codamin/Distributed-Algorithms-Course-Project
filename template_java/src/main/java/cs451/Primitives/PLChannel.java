@@ -38,8 +38,6 @@ public class PLChannel {
     private volatile LinkedBlockingQueue<SendingQueueInfo> resendingQueue= new LinkedBlockingQueue<>();
     private BEChannel upperChannel;
 
-    private Boolean busy = false;
-
     public PLChannel(BEChannel beChannel, Host broadcaster, HashMap<String,
             HashMap<Integer, Integer>> host2IdMap, int NUMPROC, int NUMMSG) {
         this.broadcaster = broadcaster;
@@ -78,6 +76,8 @@ public class PLChannel {
         else if(message instanceof Nack) {
             out = this.delivered_of_nack_set.get(procId).contains(message.getProposal_number());
         }
+
+//        System.out.println("delivered? : " + out);
         return out;
     }
 
@@ -93,20 +93,13 @@ public class PLChannel {
         }
     }
 
-    private void addToAcked(Message message, Integer procId) {
-        if(message instanceof Proposal) {
-            this.ack_of_proposal_set.get(procId).add(message.getProposal_number());
-        }
-        else if(message instanceof Ack) {
-            this.ack_of_ack_set.get(procId).add(message.getProposal_number());
-        }
-        else if(message instanceof Nack) {
-            this.ack_of_nack_set.get(procId).add(message.getProposal_number());
-        }
-    }
-
     private void sendFromQueue() {
         while(true) {
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             SendingQueueInfo sendingQueueInfo = null;
             try {sendingQueueInfo = resendingQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
 
@@ -115,7 +108,7 @@ public class PLChannel {
 
             if(! isAcked(sendingQueueInfo.message, destId)) {
                 try {this.socket.send(currentPacket);} catch (IOException e) {throw new RuntimeException(e);}
-//                System.out.println("send msg: " + sendingQueueInfo.fifoMsg);
+//                System.out.println("sening msg: " + sendingQueueInfo.message);
                 try {resendingQueue.put(sendingQueueInfo);} catch (InterruptedException e) {throw new RuntimeException(e);}
             }
         }
@@ -218,7 +211,7 @@ public class PLChannel {
             String rcvdMsg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
             int senderId = host2IdMap.get(senderIp).get(senderPort);
 
-//            System.out.println("rcvd msg:" + rcvdMsg + " from:" + senderId);
+            System.out.println("rcvd msg:" + rcvdMsg + " from:" + senderId);
 
             String[] msgSplit = rcvdMsg.split(" ");
 
@@ -227,15 +220,15 @@ public class PLChannel {
 
             // if it is a pl_ack for proposal message
             if(firstChar == 'a') {
-                this.ack_of_ack_set.get(senderPort).add(Integer.parseInt(msgSplit[1]));
+                this.ack_of_ack_set.get(senderId).add(Integer.parseInt(msgSplit[1]));
             }
             // if it is a pl_ack for nack message
             else if(firstChar == 'n') {
-                this.ack_of_nack_set.get(senderPort).add(Integer.parseInt(msgSplit[1]));
+                this.ack_of_nack_set.get(senderId).add(Integer.parseInt(msgSplit[1]));
             }
             // if it is a pl_ack for ack message
             else if(firstChar == '+') {
-                this.ack_of_proposal_set.get(senderPort).add(Integer.parseInt(msgSplit[1]));
+                this.ack_of_proposal_set.get(senderId).add(Integer.parseInt(msgSplit[1]));
             }
             // if it is a message
             else if(firstChar == 'A' || firstChar == 'N' || firstChar == '@') {

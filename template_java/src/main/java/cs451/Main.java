@@ -94,7 +94,7 @@ public class Main {
         max_elem_in_proposal = Integer.parseInt(parsedLine[1]);
         max_distinct_elems = Integer.parseInt(parsedLine[2]);
 
-        for(int i = 0; i < numOfProposals; i++) {
+        while(myReader.hasNextLine()) {
             parsedLine = myReader.nextLine().split(" ");
             HashSet<Integer> proposal = new HashSet();
             for(String msg: parsedLine) {

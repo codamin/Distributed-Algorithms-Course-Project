@@ -7,7 +7,7 @@ public class Ack extends Message{
 
     @Override
     public String toString() {
-        return "proposal number: " + proposal_number;
+        return "ack of proposal number: " + proposal_number;
     }
     @Override
     public String toPacketString() {

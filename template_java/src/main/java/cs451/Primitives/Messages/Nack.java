@@ -25,7 +25,7 @@ public class Nack extends Message{
 
     @Override
     public String toString() {
-        return "proposal number: " + proposal_number + " -- " + "accepted_value: " + this.setToString(this.accepted_value, this.delim);
+        return "ack of proposal number: " + proposal_number + " -- " + "accepted_value: " + this.setToString(this.accepted_value, this.delim);
     }
     @Override
     public String toPacketString() {
