@@ -41,7 +41,7 @@ public class Consensus {
 
     private void propose_first_batch() {
 //        this.lock = true;
-        for(int i = 0; i < 5; i++) {
+        for(int i = 0; i < 2; i++) {
             this.propose_next();
         }
 //        this.lock = false;
