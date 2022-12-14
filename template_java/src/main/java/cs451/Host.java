@@ -1,7 +1,6 @@
 package cs451;
 import cs451.Primitives.Application;
 import cs451.Primitives.Consensus;
-import cs451.Primitives.Messages.Proposal;
 
 import java.net.*;
 import java.util.*;
@@ -14,15 +13,9 @@ public class Host {
     public List<Host> getHostsList() {
         return hostsList;
     }
-
     List<Host> hostsList;
-    ArrayList<HashSet<Integer>> proposals;
-
-    public void setProposals(ArrayList<HashSet<Integer>> proposals) {
-        this.proposals = proposals;
-    }
-
     int numOfMsg;
+
     public void setApplicationLayer(Application applicationLayer) {
         this.applicationLayer = applicationLayer;
     }
@@ -44,7 +37,6 @@ public class Host {
     final Logs logs = new Logs();
     private static final String IP_START_REGEX = "/";
 
-    int lastMsg = 0;
     private int id;
     private String ip;
     private int port = -1;
@@ -93,28 +85,29 @@ public class Host {
         return port;
     }
 
-    private int current_batch = 0;
-    private int capacity = 10;
-    private int  msgPerPacket = 8;
-
     private Consensus consensus;
-    private Integer last_sent = 0;
-//    public void sendNextBatch() {
-//        consensus.propose(proposals.get(last_sent));
-//        last_sent += 1;
-//    }
 
-    public void start() {
+    private Scanner fd;
+
+    public HashSet readNextProposal() {
+        if(fd.hasNextLine()) {
+            String[] parsedLine = fd.nextLine().split(" ");
+            HashSet<Integer> proposal = new HashSet();
+            for(String msg: parsedLine) {
+                proposal.add(Integer.parseInt(msg));
+            }
+            return proposal;
+        }
+
+        return null;
+    }
+
+    public void start(Scanner fd) {
+        this.fd = fd;
         int NUMPROC = this.hostsList.size() + 1;
-        int NUMMSG = numOfMsg + 1;
 
-        this.consensus = new Consensus(this, NUMPROC, NUMMSG, proposals);
+        this.consensus = new Consensus(this, NUMPROC);
 
         this.consensus.start();
-
-//        for(HashSet<Integer> proposal: this.proposals) {
-//            System.out.println("proposing:" + proposal);
-//            consensus.propose(proposal);
-//        }
     }
 }

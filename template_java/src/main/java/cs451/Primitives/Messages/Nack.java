@@ -1,9 +1,11 @@
 package cs451.Primitives.Messages;
 
+import java.nio.ByteBuffer;
 import java.util.HashSet;
 
 public class Nack extends Message{
     String delim = ",";
+
     protected HashSet<Integer> accepted_value;
 
     public Nack(Integer round, Integer proposal_number, HashSet<Integer> accepted_value) {
@@ -27,15 +29,30 @@ public class Nack extends Message{
 
     @Override
     public String toString() {
-        return "ack of proposal number: " + proposal_number + " -- " + "accepted_value: " + this.setToString(this.accepted_value, this.delim);
+        return "ack of proposal number: " + proposal_number + " -- " + "accepted_value: " + this.accepted_value;
     }
-    @Override
-    public String toPacketString() {
-        return "N" + " " + round + " " + proposal_number + " " +  this.setToString(this.accepted_value, this.delim);
-    }
+//    @Override
+//    public String toPacketString() {
+//        return "N" + " " + round + " " + proposal_number + " " +  this.setToString(this.accepted_value, this.delim);
+//    }
 
     @Override
-    public String getAckMsg() {
-        return "n" + " " + proposal_number;
+    public byte[] contentByteArray() {
+        ByteBuffer buffer = ByteBuffer.allocate(2 + 4 + 4 + 4 + 4*accepted_value.size());
+        buffer = buffer.putChar('N').putInt(round).putInt(proposal_number).putInt(accepted_value.size());
+        for(Integer elem: accepted_value) {
+            buffer = buffer.putInt(elem);
+        }
+        return buffer.array ();
+    }
+
+//    @Override
+//    public String getAckMsg() {
+//        return "n" + " " + proposal_number;
+//    }
+
+    @Override
+    public byte[] ackByteArray() {
+        return ByteBuffer.allocate(6).putChar('n').putInt(proposal_number).array();
     }
 }

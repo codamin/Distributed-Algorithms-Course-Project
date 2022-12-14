@@ -39,10 +39,9 @@ public class Application {
         for(Integer elem: decision) {
             out += elem.toString() + " ";
         }
-//        this.logs.addLog(out.substring(0, out.length()-1));
-        this.logs.addLog(out);
+        this.logs.addLog(out.substring(0, out.length()-1));
     }
-    private void flush() {
+    private synchronized void flush() {
         try {
             writer = new PrintWriter(new FileOutputStream(new File(outputPath), true));
         } catch (FileNotFoundException e) {

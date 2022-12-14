@@ -76,9 +76,9 @@ public class Main {
         System.out.println("Doing some initialization\n");
 
         File myObj = new File(parser.config());
-        Scanner myReader;
+        Scanner fd;
         try {
-            myReader = new Scanner(myObj);
+            fd = new Scanner(myObj);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -89,22 +89,22 @@ public class Main {
 
         ArrayList<HashSet<Integer>> proposals = new ArrayList<>();
 
-        String[] parsedLine = myReader.nextLine().split(" ");
+        String[] parsedLine = fd.nextLine().split(" ");
         numOfProposals = Integer.parseInt(parsedLine[0]);
         max_elem_in_proposal = Integer.parseInt(parsedLine[1]);
         max_distinct_elems = Integer.parseInt(parsedLine[2]);
 
-        while(myReader.hasNextLine()) {
-            parsedLine = myReader.nextLine().split(" ");
-            HashSet<Integer> proposal = new HashSet();
-            for(String msg: parsedLine) {
-                proposal.add(Integer.parseInt(msg));
-            }
-            proposals.add(proposal);
-        }
+//        while(fd.hasNextLine()) {
+//            parsedLine = fd.nextLine().split(" ");
+//            HashSet<Integer> proposal = new HashSet();
+//            for(String msg: parsedLine) {
+//                proposal.add(Integer.parseInt(msg));
+//            }
+//            proposals.add(proposal);
+//        }
 
 
-        System.out.println("num of proposals = " + numOfProposals);
+//        System.out.println("num of proposals = " + numOfProposals);
 
         System.out.println("Broadcasting and delivering messages...\n");
 
@@ -114,18 +114,7 @@ public class Main {
             host2IdMap.put(host_.getIp() + ":" + host_.getPort(), host_.getId());
         }
 
-        // Set host2IdMap in each host
-//        for(Host host_: parser.hosts()) {
-//            host_.setHost2IdMap(host2IdMap);
-//        }
-
         applicationLayer = new Application(parser.output());
-
-        // Set Hosts' output paths
-        for(Host host_: parser.hosts()) {
-            host_.setApplicationLayer(applicationLayer);
-            host_.setProposals(proposals);
-        }
 
         // find the host object corresponding to the current process
         for(Host host_: parser.hosts()) {
@@ -133,8 +122,9 @@ public class Main {
                 thisHost = host_;
         }
 
+        thisHost.setApplicationLayer(applicationLayer);
         thisHost.setHosts(parser.hosts());
-        thisHost.start();
+        thisHost.start(fd);
 
          // After a process finishes broadcasting,
          // it waits forever for the delivery of messages.

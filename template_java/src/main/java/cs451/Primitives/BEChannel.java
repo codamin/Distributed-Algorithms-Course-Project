@@ -16,7 +16,7 @@ public class BEChannel {
     public PLChannel plChannel;
     public Consensus consensus;
 
-    public BEChannel(List<Host> hostsList, Consensus consensus, Host broadcaster, int NUMPROC, int NUMMSG) {
+    public BEChannel(List<Host> hostsList, Consensus consensus, Host broadcaster) {
         this.hostsList = hostsList;
         this.broadcaster = broadcaster;
         // creating a host2IdMap to send to pl channel. The pl channel will need it to know the id of the sender of a msg
@@ -35,7 +35,7 @@ public class BEChannel {
 
         ////////////////////////
         this.consensus = consensus;
-        this.plChannel = new PLChannel(this, broadcaster, host2IdMap, NUMPROC, NUMMSG);
+        this.plChannel = new PLChannel(this, broadcaster, host2IdMap);
     }
 
     public void startThreads() {
