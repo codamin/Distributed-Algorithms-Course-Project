@@ -6,10 +6,12 @@ import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.util.HashSet;
 
+import static java.lang.Math.max;
+
 public class Application {
 
     private String outputPath;
-    private Integer lineCapacity = 1;
+    private Integer lineCapacity = 10;
     private Integer numLines = 0;
 
     PrintWriter writer;
@@ -39,7 +41,7 @@ public class Application {
         for(Integer elem: decision) {
             out += elem.toString() + " ";
         }
-        this.logs.addLog(out.substring(0, out.length()-1));
+        this.logs.addLog(out.substring(0, max(0, out.length()-1)));
     }
     private synchronized void flush() {
         try {
@@ -58,8 +60,7 @@ public class Application {
             this.logString = "";
         }
         public synchronized void addLog(String addition) {
-            logString += addition;
-            logString += "\n";
+            logString += addition + "\n";
         }
     }
     final Logs logs = new Logs();

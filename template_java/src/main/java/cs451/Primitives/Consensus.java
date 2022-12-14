@@ -14,7 +14,6 @@ public class Consensus {
     private HashMap<Integer, Integer> nack_count = new HashMap<>();
     private HashMap<Integer, Boolean> active = new HashMap<>();
     private HashMap<Integer, HashSet<Integer>> accepted_values = new HashMap<>();
-    private HashMap<Integer, Integer> round_last_proposal_number = new HashMap<>();
     private Integer active_proposal_number = 0;
     private Integer f;
     private Integer next_round = -1;
@@ -37,9 +36,9 @@ public class Consensus {
     }
 
     private void propose_first_batch() {
-        for(int i = 0; i < 10; i++) {
-            this.propose_next();
-        }
+//        for(int i = 0; i < 10; i++) {
+        this.propose_next();
+//        }
     }
 
     private void propose_next() {
@@ -51,58 +50,57 @@ public class Consensus {
             return;
         }
         this.proposed_values.put(this.next_round, new_proposal);
-
-
-//        System.out.println("total: " + this.all_proposals.size() + " proposing round: " + this.next_round);
-        this.accepted_values.computeIfAbsent(next_round, k -> new HashSet<>());
         this.active.put(this.next_round, true);
-
         this.active_proposal_number += 1;
-        this.round_last_proposal_number.put(this.next_round, this.active_proposal_number);
-
         this.ack_count.put(this.next_round, 0);
         this.nack_count.put(this.next_round, 0);
         this.beChannel.be_broadcast(new Proposal(this.next_round, this.active_proposal_number, (HashSet<Integer>) this.proposed_values.get(this.next_round).clone()));
     }
 
     public void consensus_ack(Ack ack) {
-//        System.out.println("rcvd ack " + ack.getProposal_number() + " --- " + "active_proposal_number: " + this.active_proposal_number);
         Integer ack_round = ack.getRound();
-        if(ack.getProposal_number().equals(this.round_last_proposal_number.get(ack_round))) {
+        if(ack.getProposal_number().equals(active_proposal_number)) {
             this.ack_count.put(ack_round, this.ack_count.get(ack_round) + 1);
-            this.handle_ack_nack(ack_round);
+            this.check_and_decide(ack_round);
+//            this.check_refine_and_send(ack_round);
         }
     }
 
     public void consensus_nack(Nack nack) {
         Integer nack_round = nack.getRound();
-        if(nack.getProposal_number().equals(this.round_last_proposal_number.get(nack_round))) {
+        if(nack.getProposal_number().equals(active_proposal_number)) {
             this.proposed_values.get(nack_round).addAll(nack.getAccepted_value());
             this.nack_count.put(nack_round, this.nack_count.get(nack_round) + 1);
-            this.handle_ack_nack(nack_round);
+            this.check_refine_and_send(nack_round);
         }
     }
 
-    private void handle_ack_nack(Integer round) {
+    private void check_refine_and_send(Integer round) {
+//        if (this.active.get(round) && (this.ack_count.get(round) + this.nack_count.get(round) >= this.f + 1)) {
+        if(this.active.get(round)) {
+            this.active_proposal_number += 1;
+//            this.round_last_proposal_number.put(round, this.active_proposal_number);
+            this.ack_count.put(round, 0);
+            this.nack_count.put(round, 0);
+            this.beChannel.be_broadcast(new Proposal(round, active_proposal_number, (HashSet<Integer>) this.proposed_values.get(round).clone()));
+        }
+//        }
+    }
+
+    private void check_and_decide(Integer round) {
         if ((this.ack_count.get(round) >= this.f + 1) && this.active.get(round)) {
 //            System.out.println("deciding...");
             this.active.put(round, false);
             this.decide(round);
-        }
-
-        if (this.active.get(round) && (this.ack_count.get(round) + this.nack_count.get(round) >= this.f + 1)) {
-            this.active_proposal_number += 1;
-            this.round_last_proposal_number.put(round, this.active_proposal_number);
-            this.ack_count.put(round, 0);
-            this.nack_count.put(round, 0);
-            this.beChannel.be_broadcast(new Proposal(round, active_proposal_number, (HashSet<Integer>) this.proposed_values.get(round).clone()));
         }
     }
 
     public void get_proposal(String sourceIP, Integer sourcePort, Proposal proposal) {
         Integer proposal_round = proposal.getRound();
         HashSet<Integer> proposed_value = proposal.getProposed_value();
+
         this.accepted_values.computeIfAbsent(proposal_round, k -> new HashSet<>());
+
         if(proposed_value.containsAll(this.accepted_values.get(proposal_round))) {
             //send ack
             this.accepted_values.put(proposal_round, proposed_value);
@@ -126,7 +124,7 @@ public class Consensus {
 //            }
 //            this.propose_next();
 //        }
-        this.broadcaster.getApplicationLayer().log(this.accepted_values.get(decided_round));
+        this.broadcaster.getApplicationLayer().log(this.proposed_values.get(decided_round));
         this.propose_next();
     }
 }

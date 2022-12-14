@@ -97,7 +97,7 @@ public class PLChannel {
     private void sendFromQueue() {
         while(true) {
 //            try {
-//                Thread.sleep(3);
+//                Thread.sleep(2);
 //            } catch (InterruptedException e) {
 //                throw new RuntimeException(e);
 //            }
