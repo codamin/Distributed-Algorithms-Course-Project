@@ -83,16 +83,11 @@ public class Main {
             throw new RuntimeException(e);
         }
 
-        int numOfProposals = 0;
-        int max_elem_in_proposal = 0;
-        int max_distinct_elems = 0;
-
-        ArrayList<HashSet<Integer>> proposals = new ArrayList<>();
 
         String[] parsedLine = fd.nextLine().split(" ");
-        numOfProposals = Integer.parseInt(parsedLine[0]);
-        max_elem_in_proposal = Integer.parseInt(parsedLine[1]);
-        max_distinct_elems = Integer.parseInt(parsedLine[2]);
+        int numOfProposals = Integer.parseInt(parsedLine[0]);
+        int max_elem_in_proposal = Integer.parseInt(parsedLine[1]);
+        int max_distinct_elems = Integer.parseInt(parsedLine[2]);
 
 //        while(fd.hasNextLine()) {
 //            parsedLine = fd.nextLine().split(" ");
@@ -124,7 +119,7 @@ public class Main {
 
         thisHost.setApplicationLayer(applicationLayer);
         thisHost.setHosts(parser.hosts());
-        thisHost.start(fd);
+        thisHost.start(fd, numOfProposals, max_elem_in_proposal, max_distinct_elems);
 
          // After a process finishes broadcasting,
          // it waits forever for the delivery of messages.

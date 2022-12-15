@@ -102,11 +102,11 @@ public class Host {
         return null;
     }
 
-    public void start(Scanner fd) {
+    public void start(Scanner fd, int numOfProposals, int max_elem_in_proposal, int max_distinct_elems) {
         this.fd = fd;
-        int NUMPROC = this.hostsList.size() + 1;
+        int NUMPROC = this.hostsList.size();
 
-        this.consensus = new Consensus(this, NUMPROC);
+        this.consensus = new Consensus(this, NUMPROC, max_distinct_elems);
 
         this.consensus.start();
     }

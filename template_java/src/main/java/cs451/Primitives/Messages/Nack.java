@@ -43,7 +43,7 @@ public class Nack extends Message{
         for(Integer elem: accepted_value) {
             buffer = buffer.putInt(elem);
         }
-        return buffer.array ();
+        return buffer.array();
     }
 
 //    @Override

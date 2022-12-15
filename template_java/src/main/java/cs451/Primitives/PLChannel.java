@@ -1,10 +1,7 @@
 package cs451.Primitives;
 
 import cs451.Host;
-import cs451.Primitives.Messages.Ack;
-import cs451.Primitives.Messages.Message;
-import cs451.Primitives.Messages.Nack;
-import cs451.Primitives.Messages.Proposal;
+import cs451.Primitives.Messages.*;
 
 import java.io.IOException;
 import java.net.*;
@@ -31,18 +28,26 @@ public class PLChannel {
     private MapInt2Set delivered_of_proposal_set = new MapInt2Set(); // store for each proc the set of proposals we have delivered
     private MapInt2Set delivered_of_ack_set = new MapInt2Set(); // store for each proc the set of Consensus Acks we have delivered
     private MapInt2Set delivered_of_nack_set = new MapInt2Set(); // store for each proc the set of Consensus Nacks we have delivered
+    private MapInt2Set delivered_of_decision_set = new MapInt2Set(); // store for each proc the set of Consensus Decisions we have delivered
+
     private MapInt2Set ack_of_proposal_set = new MapInt2Set(); // store for each proc the set of proposals it has acked
     private MapInt2Set ack_of_ack_set = new MapInt2Set(); // store for each proc the set of Consensus Acks it has acked
     private MapInt2Set ack_of_nack_set = new MapInt2Set(); // store for each proc the set of Consensus Nacks it has acked
+    private MapInt2Set ack_of_decision_set = new MapInt2Set(); // store for each proc the set of Consensus Decisions it has acked
 
     private volatile LinkedBlockingQueue<DeliveryQueueInfo> deliverQueue = new LinkedBlockingQueue<>();
     private volatile LinkedBlockingQueue<SendingQueueInfo> resendingQueue= new LinkedBlockingQueue<>();
     private BEChannel upperChannel;
 
+    private int max_distinct_elems;
+    private int NUM_PROC;
+
     public PLChannel(BEChannel beChannel, Host broadcaster, HashMap<String,
-            HashMap<Integer, Integer>> host2IdMap) {
+            HashMap<Integer, Integer>> host2IdMap, int NUM_PROC, int max_distinct_elems) {
         this.broadcaster = broadcaster;
         this.host2IdMap = host2IdMap;
+        this.max_distinct_elems = max_distinct_elems;
+        this.NUM_PROC = NUM_PROC;
         try {
             this.socket = new DatagramSocket(this.broadcaster.getPort());
         } catch (SocketException e) {
@@ -63,6 +68,9 @@ public class PLChannel {
         else if(message instanceof Nack) {
             out = this.ack_of_nack_set.get(procId).contains(message.getProposal_number());
         }
+        else if(message instanceof Decided) {
+            out = this.ack_of_decision_set.get(procId).contains(message.getRound());
+        }
         return out;
     }
 
@@ -77,7 +85,10 @@ public class PLChannel {
         else if(message instanceof Nack) {
             out = this.delivered_of_nack_set.get(procId).contains(message.getProposal_number());
         }
-
+        else if(message instanceof Decided) {
+            out = this.delivered_of_decision_set.get(procId).contains(message.getRound());
+//            System.out.println(out);
+        }
 //        System.out.println("delivered? : " + out);
         return out;
     }
@@ -92,12 +103,15 @@ public class PLChannel {
         else if(message instanceof Nack) {
             this.delivered_of_nack_set.get(procId).add(message.getProposal_number());
         }
+        else if(message instanceof Decided) {
+            this.delivered_of_decision_set.get(procId).add(message.getRound());
+        }
     }
 
     private void sendFromQueue() {
         while(true) {
 //            try {
-//                Thread.sleep(2);
+//                Thread.sleep(1);
 //            } catch (InterruptedException e) {
 //                throw new RuntimeException(e);
 //            }
@@ -190,16 +204,17 @@ public class PLChannel {
         while(true) {
             DeliveryQueueInfo deliveryQueueInfo;
             // block to find msg
-            try {
-                 deliveryQueueInfo = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
-            addToDelivered(deliveryQueueInfo.message, deliveryQueueInfo.delivererId);
-            upperChannel.be_deliver(deliveryQueueInfo.sourceIp, deliveryQueueInfo.sourcePort, deliveryQueueInfo.message);
+            try {deliveryQueueInfo = deliverQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
+            if(! isDelivered(deliveryQueueInfo.message, deliveryQueueInfo.delivererId)) {
+                addToDelivered(deliveryQueueInfo.message, deliveryQueueInfo.delivererId);
+                upperChannel.be_deliver(deliveryQueueInfo.sourceIp, deliveryQueueInfo.sourcePort, deliveryQueueInfo.message);
+            }
         }
     }
 
     public void listen() {
         while(true) {
-            byte[] rcvBuf = new byte[128];
+            byte[] rcvBuf = new byte[(NUM_PROC * max_distinct_elems)*4 + 100];
             DatagramPacket rcvPacket = new DatagramPacket(rcvBuf, rcvBuf.length);
 
             // block to receive
@@ -212,58 +227,61 @@ public class PLChannel {
             String senderIp = rcvPacket.getAddress().getHostAddress();
             int senderPort = rcvPacket.getPort();
 
-//            String rcvdMsg = new String(rcvPacket.getData(), 0, rcvPacket.getLength());
             byte[] rcvd_bytes = rcvPacket.getData();
-            ByteBuffer buffer = ByteBuffer.wrap(rcvd_bytes, 0, rcvd_bytes.length);
-
+            ByteBuffer buffer = ByteBuffer.wrap(rcvd_bytes);
+//            buffer.rewind();
             int senderId = host2IdMap.get(senderIp).get(senderPort);
-
-//            System.out.println("rcvd msg:" + rcvdMsg + " from:" + senderId);
-
-//            String[] msgSplit = rcvdMsg.split(" ");
-
-            // if the rcvd packet is an ack packet, add it to acked set
-//            char firstChar = rcvdMsg.charAt(0);
 
             int CHAR_SIZE = 2;
             int INT_SIZE = 4;
 
-            char firstChar = buffer.getChar(0);
+            char firstChar = buffer.getChar();
 
 //            System.out.println(firstChar + " " + System.currentTimeMillis());
-
-            Integer ackProposalNumber = buffer.getInt(CHAR_SIZE);
             // if it is a pl_ack for proposal message
             if(firstChar == 'a') {
-                this.ack_of_ack_set.get(senderId).add(ackProposalNumber);
+                this.ack_of_ack_set.get(senderId).add(buffer.getInt());
             }
             // if it is a pl_ack for nack message
             else if(firstChar == 'n') {
-                this.ack_of_nack_set.get(senderId).add(ackProposalNumber);
+                this.ack_of_nack_set.get(senderId).add(buffer.getInt());
             }
             // if it is a pl_ack for ack message
             else if(firstChar == '+') {
-                this.ack_of_proposal_set.get(senderId).add(ackProposalNumber);
+                this.ack_of_proposal_set.get(senderId).add(buffer.getInt());
+            }
+            // if it is a pl_ack for decision message
+            else if(firstChar == 'd') {
+                this.ack_of_decision_set.get(senderId).add(buffer.getInt());
             }
             // if it is a message
-            else if(firstChar == 'A' || firstChar == 'N' || firstChar == '@') {
-                Integer proposal_number = buffer.getInt(CHAR_SIZE + INT_SIZE);
+            else if(firstChar == 'A' || firstChar == 'N' || firstChar == '@' || firstChar == 'D') {
+//                Integer proposal_number = buffer.getInt();
 //                System.out.println("proposal_number: " + proposal_number + " " + System.currentTimeMillis());
 
                 Message msg_to_be_delivred = null;
-                Integer round = buffer.getInt(CHAR_SIZE);
+
+                if (firstChar == 'D') {
+                    Integer round = buffer.getInt();
+                    msg_to_be_delivred = new Decided(round);
+                }
                 // Deliver if is not already + Acknowledge it
-                if(firstChar == 'A') { // if it is a consensus ack :
+                else if(firstChar == 'A') { // if it is a consensus ack :
+                    Integer round = buffer.getInt();
+                    Integer proposal_number = buffer.getInt();
                     msg_to_be_delivred = new Ack(round, proposal_number);
                 }
                 else if(firstChar == 'N' || firstChar == '@') {
-                    int set_size = buffer.getInt(CHAR_SIZE + INT_SIZE + INT_SIZE);
-                    HashSet set = new HashSet();
+                    Integer round = buffer.getInt();
+                    Integer proposal_number = buffer.getInt();
+                    Integer set_size = buffer.getInt();
+//                    System.out.println(set_size);
+//                    System.out.println(firstChar + " " + round + " " + proposal_number + " " + set_size + " " + buffer.limit());
+                    HashSet<Integer> set = new HashSet();
                     for(int i = 0; i < set_size; i++) {
-                        int set_elem = buffer.getInt(CHAR_SIZE + INT_SIZE + INT_SIZE + INT_SIZE + i*INT_SIZE);
+                        Integer set_elem = buffer.getInt();
                         set.add(set_elem);
                     }
-//                    System.out.println(set_size + " " + set);
                     if(firstChar == 'N') { // if it is a consensus nack
                         msg_to_be_delivred = new Nack(round, proposal_number, set);
                     }
@@ -273,13 +291,10 @@ public class PLChannel {
                 }
 
                 pl_ack(senderIp, senderPort, msg_to_be_delivred);
-
-                if(! isDelivered(msg_to_be_delivred, senderId)) {
-                    try {
+                 try {
                         deliverQueue.put(new DeliveryQueueInfo(senderId, msg_to_be_delivred, senderIp, senderPort));
-                    } catch (InterruptedException e) {
+                 } catch (InterruptedException e) {
                         throw new RuntimeException(e);
-                    }
                 }
             }
         }
