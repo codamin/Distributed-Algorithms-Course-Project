@@ -43,7 +43,7 @@ public class Consensus {
     }
 
     public void start() {
-        for(int i = 0; i < 5; i++) {
+        for(int i = 0; i < 10; i++) {
             this.propose_next();
         }
     }
@@ -151,7 +151,13 @@ public class Consensus {
             this.proposed_values.remove(msg.getRound());
 //            System.out.println(this.accepted_values.size() + " " + this.proposed_values.size() + " " + this.decisions.size());
         }
-        if(this.round_to_decided_procs.get(msg.getRound()).size() == this.f+1) {
+        if(senderId.equals(this.broadcaster.getId())) {
+            if(this.round_to_decided_procs.get(msg.getRound()).size() >= this.f+1) {
+                this.propose_next();
+            }
+        }
+        else if(this.round_to_decided_procs.get(msg.getRound()).contains(this.broadcaster.getId()) &&
+                this.round_to_decided_procs.get(msg.getRound()).size() == this.f+1) {
             this.propose_next();
         }
     }

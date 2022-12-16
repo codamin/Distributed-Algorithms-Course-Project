@@ -110,11 +110,7 @@ public class PLChannel {
 
     private void sendFromQueue() {
         while(true) {
-//            try {
-//                Thread.sleep(1);
-//            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
+//            System.out.println(resendingQueue.size());
             SendingQueueInfo sendingQueueInfo = null;
             try {sendingQueueInfo = resendingQueue.take();} catch (InterruptedException e) {throw new RuntimeException(e);}
 
