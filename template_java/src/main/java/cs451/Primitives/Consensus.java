@@ -17,6 +17,12 @@ public class Consensus {
     private Integer active_proposal_number = 0;
     private Integer f;
     private Integer next_round = -1;
+
+    private HashMap<Integer, Integer> round_active_proposal_number = new HashMap<>();
+
+    private int last_round_decided = -1;
+
+    private HashMap<Integer, HashSet> decisions = new HashMap<>();
     private Host broadcaster;
     private BEChannel beChannel;
 //    private ArrayList<HashSet<Integer>> all_proposals;
@@ -37,17 +43,15 @@ public class Consensus {
     }
 
     public void start() {
-        this.propose_first_batch();
+        for(int i = 0; i < 5; i++) {
+            this.propose_next();
+        }
     }
 
-    private void propose_first_batch() {
-//        for(int i = 0; i < 10; i++) {
-        this.propose_next();
-//        }
-    }
-
-    private void propose_next() {
+    private synchronized void propose_next() {
         this.next_round += 1;
+        this.active_proposal_number += 1;
+        this.round_active_proposal_number.put(next_round, active_proposal_number);
 
         HashSet<Integer> new_proposal = this.broadcaster.readNextProposal();
         if(new_proposal == null) {
@@ -56,24 +60,28 @@ public class Consensus {
         }
         this.proposed_values.put(this.next_round, new_proposal);
         this.active.put(this.next_round, true);
-        this.active_proposal_number += 1;
         this.ack_count.put(this.next_round, 0);
         this.nack_count.put(this.next_round, 0);
+//        System.out.println(this.next_round);
         this.beChannel.be_broadcast(new Proposal(this.next_round, this.active_proposal_number, (HashSet<Integer>) this.proposed_values.get(this.next_round).clone()));
     }
 
     public void consensus_ack(Ack ack) {
         Integer ack_round = ack.getRound();
-        if(ack.getProposal_number().equals(active_proposal_number)) {
+        if(ack.getProposal_number().equals(this.round_active_proposal_number.get(ack.getRound()))) {
+//            System.out.println("ack_round: " + ack_round + " " + ack.getProposal_number());
             this.ack_count.put(ack_round, this.ack_count.get(ack_round) + 1);
             this.check_and_decide(ack_round);
-            this.check_refine_and_send(ack_round);
+//            this.check_refine_and_send(ack_round);
         }
     }
 
     public void consensus_nack(Nack nack) {
         Integer nack_round = nack.getRound();
-        if(nack.getProposal_number().equals(active_proposal_number)) {
+        if(nack.getProposal_number().equals(this.round_active_proposal_number.get(nack.getRound()))) {
+            if(! this.proposed_values.containsKey(nack_round)) {
+              return;
+            }
             this.proposed_values.get(nack_round).addAll(nack.getAccepted_value());
             this.nack_count.put(nack_round, this.nack_count.get(nack_round) + 1);
             this.check_refine_and_send(nack_round);
@@ -81,10 +89,10 @@ public class Consensus {
     }
 
     private void check_refine_and_send(Integer round) {
-        if (this.active.get(round) && (this.ack_count.get(round) + this.nack_count.get(round) >= this.f + 1)) {
-//        if(this.active.get(round)) {
+//        if (this.active.get(round) && (this.ack_count.get(round) + this.nack_count.get(round) >= this.f + 1)) {
+        if(this.active.get(round)) {
             this.active_proposal_number += 1;
-//            this.round_last_proposal_number.put(round, this.active_proposal_number);
+            this.round_active_proposal_number.put(round, this.active_proposal_number);
             this.ack_count.put(round, 0);
             this.nack_count.put(round, 0);
             this.beChannel.be_broadcast(new Proposal(round, active_proposal_number, (HashSet<Integer>) this.proposed_values.get(round).clone()));
@@ -124,18 +132,13 @@ public class Consensus {
     }
 
     private void decide(Integer decided_round) {
-//        if(decided_round == this.last_round_decided + 1) {
-//            this.broadcaster.getApplicationLayer().log(this.accepted_values.get(decided_round));
-//            this.last_round_decided += 1;
-//            while(!this.active.get(last_round_decided)) {
-//                this.broadcaster.getApplicationLayer().log(this.accepted_values.get(last_round_decided));
-//                this.last_round_decided += 1;
-//            }
-//            this.propose_next();
-//        }
-        this.broadcaster.getApplicationLayer().log(this.proposed_values.get(decided_round));
-        this.beChannel.be_broadcast(new Decided(decided_round));
-        this.propose_next();
+        this.decisions.put(decided_round, (HashSet) this.proposed_values.get(decided_round).clone());
+        while(this.decisions.containsKey(last_round_decided + 1)) {
+            this.broadcaster.getApplicationLayer().log(this.decisions.get(last_round_decided + 1));
+            this.beChannel.be_broadcast(new Decided(last_round_decided + 1));
+            this.decisions.remove(last_round_decided + 1);
+            this.last_round_decided += 1;
+        }
     }
 
     public void announce_decided(Integer senderId, Decided msg) {
@@ -146,6 +149,10 @@ public class Consensus {
 //            System.out.println("gc ing!");
             this.accepted_values.remove(msg.getRound());
             this.proposed_values.remove(msg.getRound());
+//            System.out.println(this.accepted_values.size() + " " + this.proposed_values.size() + " " + this.decisions.size());
+        }
+        if(this.round_to_decided_procs.get(msg.getRound()).size() == this.f+1) {
+            this.propose_next();
         }
     }
 }
